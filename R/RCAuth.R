@@ -26,8 +26,9 @@ RCAuth <- function(config) {
 #' This function checks to see if the current session is authenticated, and if not, redirect them to REDCap to log in.  This can serve as a template for other authenication mechanisms
 #' @param req Plumber req object
 #' @param res Plumber res object
+#' @param config \link{Config} object
 #'
-#' @return NULL if authenticated, a string URL to the REDCap project providing the authentication active link (see \link{checkAuth}) 
+#' @return NULL if authenticated, a string URL to the REDCap project providing the authentication active link (see \link{RCAuthProcess}) 
 #' for more information about the format of the REDCap active link).  Otherwise will return \code{list(err = "error message here")}
 doRCAuth <- function(req, res, config) {
   if(!is.null(req$session)) {
@@ -84,6 +85,7 @@ doRCAuth <- function(req, res, config) {
 #' 
 #' @param req Plumber req object
 #' @param res Plumber res object
+#' @param config \link{Config} object
 #'
 #' @return \code{list(username = username)} if successful otherwise \code{list(err = "error message")} and/or sending
 #' \code{res$status <- 401} (not authenticated)

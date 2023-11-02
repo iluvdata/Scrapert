@@ -1,0 +1,6 @@
+debug: no
+usePID: yes
+pidName: PID
+timeout: 21600
+server_port: 5500
+

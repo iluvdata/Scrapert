@@ -10,9 +10,11 @@ doRCAuth(req, res, config)
 \item{req}{Plumber req object}
 
 \item{res}{Plumber res object}
+
+\item{config}{\link{Config} object}
 }
 \value{
-NULL if authenticated, a string URL to the REDCap project providing the authentication active link (see \link{checkAuth}) 
+NULL if authenticated, a string URL to the REDCap project providing the authentication active link (see \link{RCAuthProcess}) 
 for more information about the format of the REDCap active link).  Otherwise will return \code{list(err = "error message here")}
 }
 \description{

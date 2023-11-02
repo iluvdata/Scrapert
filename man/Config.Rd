@@ -12,7 +12,7 @@ Holds configuration for Scrapert
 ## Method `Config$new`
 ## ------------------------------------------------
 
-config <- Config$new("config.yml")
+# config <- Config$new("config.yml")
 
 ## ------------------------------------------------
 ## Method `Config$loadFromFile`
@@ -61,6 +61,7 @@ config$addConfig(
 \item \href{#method-Config-yaml}{\code{Config$yaml()}}
 \item \href{#method-Config-print}{\code{Config$print()}}
 \item \href{#method-Config-getWebConfig}{\code{Config$getWebConfig()}}
+\item \href{#method-Config-configNeeded}{\code{Config$configNeeded()}}
 \item \href{#method-Config-saveWebConfig}{\code{Config$saveWebConfig()}}
 \item \href{#method-Config-addConfig}{\code{Config$addConfig()}}
 \item \href{#method-Config-clone}{\code{Config$clone()}}
@@ -84,7 +85,7 @@ Creates a new instance of this class.
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
-\preformatted{config <- Config$new("config.yml")
+\preformatted{# config <- Config$new("config.yml")
 }
 \if{html}{\out{</div>}}
 
@@ -203,6 +204,19 @@ get nested lists for json serialization
 
 \subsection{Returns}{
 nested lists of items
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Config-configNeeded"></a>}}
+\if{latex}{\out{\hypertarget{method-Config-configNeeded}{}}}
+\subsection{Method \code{configNeeded()}}{
+a setting is needed
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Config$configNeeded()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+\code{TRUE} if a setting is needed
 }
 }
 \if{html}{\out{<hr>}}

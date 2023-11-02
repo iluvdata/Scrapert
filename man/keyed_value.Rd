@@ -13,6 +13,8 @@ keyed_ts(key, txt, tz)
 \item{key}{key of value to extract}
 
 \item{txt}{source of extraction}
+
+\item{tz}{Olson Name tz of value}
 }
 \value{
 the value after the key

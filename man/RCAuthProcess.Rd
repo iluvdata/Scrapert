@@ -10,6 +10,8 @@ RCAuthProcess(req, res, config)
 \item{req}{Plumber req object}
 
 \item{res}{Plumber res object}
+
+\item{config}{\link{Config} object}
 }
 \value{
 \code{list(username = username)} if successful otherwise \code{list(err = "error message")} and/or sending

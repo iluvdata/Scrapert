@@ -13,6 +13,7 @@ keyed_value <- function(key, txt) {
 }
 
 #' @rdname keyed_value
+#' @param tz Olson Name tz of value
 keyed_ts <- function(key, txt, tz) {
   value <- as.POSIXct(str_extract(txt, paste0("(?<=", str_replace_all(key, "\\s", "\\\\s"),
                                               ":\\s{1,30})[:graph:]{8}\\s[:graph:]{8}")),

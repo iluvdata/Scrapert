@@ -9,7 +9,7 @@ Config <- R6Class("Config",
     #' Creates a new instance of this class.
     #' @param file file or path to yaml config file
     #' @examples
-    #' config <- Config$new("config.yml")
+    #' # config <- Config$new("config.yml")
     initialize = function(file) {
       self$loadFromFile(file)
       self$xpert <- purrr::list_merge(self$xpert,

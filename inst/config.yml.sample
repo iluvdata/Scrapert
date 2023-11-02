@@ -1,0 +1,28 @@
+debug: no
+usePID: yes
+pidName: PID
+PIDselector: R/PID.R
+CRFupdater: R/CRF.R
+auth: R/Auth.R
+RCAuthPID: 5464
+RCApi: https://redcap.ctsc.weill.cornell.edu/redcap_protocols/api/
+timeout: 21600
+server_port: 5500
+updateCRFOnImport: yes
+xpertTZ: America/Sao_Paulo
+xpert:
+  '16':
+    use: yes
+    ct: 40
+  18_45:
+    use: yes
+    ct: 32
+  P3:
+    use: yes
+    ct: 30
+  P4:
+    use: no
+    ct: ''
+  P5:
+    use: no
+    ct: ''

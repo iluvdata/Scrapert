@@ -1,0 +1,30 @@
+.file-drop-area {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: LightGray;
+  width: 100%;
+  padding: 25px;
+  border: 1px dashed;
+  border-radius: 3px;
+  transition: 0.2s;
+}
+
+.file-message {
+  line-height: 1.4;
+  padding-left:  10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 100%;
+  cursor: pointer;
+  opacity: 0;
+  
+}

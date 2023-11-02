@@ -1,0 +1,13 @@
+Package: Scrapert
+Type: Package
+Title: Local Scrapert App
+Description: Local web app to pull information from Xpert HPV(R) test results, store in a local database, and (optionally) upload to a database.
+Version: 0.8.0
+Encoding: UTF-8
+Author: Grant Ellsworth <gre9006@med.cornell.edu>
+Maintainer: Grant Ellsworth <gre9006@med.cornell.edu>
+RoxygenNote: 7.2.3
+License: GPL-3
+Depends: plumber, R (>= 2.10)
+Imports: DBI, R6, later, pdftools, stringr, tidyverse, uuid, yaml, websocket, RSQLite, base64enc, httr, keyring, lubridate, readr
+LazyData: true

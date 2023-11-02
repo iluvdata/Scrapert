@@ -2,5 +2,5 @@
 ^\.Rproj\.user$
 ^.*xpertdb$
 ^.*scrapert.log$
-^.*yml$
+^.*config.yml$
 ^.*plumber.lock$

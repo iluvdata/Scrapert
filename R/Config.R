@@ -68,7 +68,7 @@ Config <- R6Class("Config",
     #' @description
         #' print to terminal in yaml
         #' @examples
-                #' config
+                #' #config
     print = function() {
       cat(self$yaml())
     },

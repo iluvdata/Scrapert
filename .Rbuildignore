@@ -1,4 +1,6 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^xpertdb
-^scrapert.log
+^.*xpertdb$
+^.*scrapert.log$
+^.*yml$
+^.*plumber.lock$

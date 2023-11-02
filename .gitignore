@@ -2,7 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
-/inst/config.yml
-/inst/xpertdb
 .DS_Store
 .Rprofile
+*.log
+xpertdb
+*.lock
+config.yml

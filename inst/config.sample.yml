@@ -3,4 +3,24 @@ usePID: yes
 pidName: PID
 timeout: 21600
 server_port: 5500
-
+xpertTZ: America/Sao_Paulo
+xpert:
+  '16':
+    use: yes
+    ct: 40
+  18_45:
+    use: yes
+    ct: 32
+  P3:
+    use: yes
+    ct: 30
+  P4:
+    use: no
+    ct: ''
+  P5:
+    use: no
+    ct: ''
+modules:
+  auth: RCAuth
+  pid: RCPID
+  crf: RCCRF

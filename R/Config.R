@@ -77,7 +77,11 @@ Config <- R6Class("Config",
         #' @return nested lists of items
     getWebConfig = function() {
       l <- purrr::keep(self$config, function(x) { !is.null(x$label) }) %>%
-        purrr::map_if(\(x) !is.null(x$opts), function(x) { purrr::list_modify(x, opts = x$opts[[1]]())})
+        purrr::map(function(x) { 
+          if(!is.null(x$opts)) x <- purrr::list_modify(x, opts = x$opts[[1]]())
+          if(is.null(x$value)) x$value = NULL
+          x
+        })
       l$xpert = self$xpert
       l
     },

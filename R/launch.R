@@ -16,13 +16,18 @@
 #' 
 #' 
 launch <- function(wd = getwd()) {
-  file.remove("scrapert.log")
-  #log <- file("scrapert.log", "wt")
-  #sink(log, append = TRUE, type = "output")
-  #sink(log, append = TRUE, type = "message")
+  if(!interactive()) {
+    file.remove("scrapert.log")
+    log <- file("scrapert.log", "wt")
+    sink(log, append = TRUE, type = "output")
+    sink(log, append = TRUE, type = "message")
+  }
   message("Using working directory ", wd)
   setwd(wd)
-  cat("Launching Scapert\n")
-  #flush(log)
+  if(!file.exists("config.yml")) {
+    warning("No config found, using basic configuration")
+    file.copy("config.sample.yml", "config.yml")
+  }
+  message("Launching Scapert\n")
   PlumberWebSocket$new(system.file("plumber.R", package="Scrapert"))$run()
 }

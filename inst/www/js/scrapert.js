@@ -77,18 +77,41 @@ function search(e){
       }
     )
     .fail(function(jqXHR) {
-      showErr(jqXHR.responseJSON);
+      showErr(jqXHR.responseJSON[0]);
     });
   } else {
     $("#resTbl").addClass("d-none");
   }
+}
+function del(id, sampleId) {
+  $(".modal-footer").prepend(`<button id="confirmDel" class="btn btn-danger"  disabled>Confirm Delete</button>`);
+  showModal("Confirm Delete?", `<p>Delete sample <span id="sampleId">${sampleId}</span>?</p><p>Type the sample id below to confirm</p>
+      <input type="text" class="form-control" id="sampleidconf">`)
+  $("#confirmDel").click((e) => {confDel(id);});
+  $("#myModal").on('hidden.bs.modal', e => { $("#confirmDel").remove(); });
+  $("#sampleidconf").keyup(e => {
+    $("#confirmDel").attr("disabled", e.target.value.toLowerCase() != $("#sampleId").text().toLowerCase()); 
+    }).trigger("focus");
+}
+function confDel(id) {
+  $.ajax({ url: "delete?id=" + id, method: "DELETE"})
+  .done(data => {
+    showToast("Sample Successfully Deleted");
+    $("#resTbl").addClass("d-none");
+    $("#search").val("");
+  })
+  .fail((jqXHR) => {
+    showErr(jqXHR.responseJSON);
+  })
+  $("#myModal").modal("hide");
 }
 function updateTable(tbl, data) {
   tbody = $("tbody");
   tbody.empty();
   if (data.length > 0) {
     for (let d in data) {
-      tbody.append(`<tr><td>${data[d].sample_id}</td>
+      tbody.append(`<tr><td><a href="#" class="link-underline-danger"
+          onClick="del(${data[d].id }, '${data[d].sample_id}');">${data[d].sample_id}</a></td>
         <td ${ usePID ? "" : "class='d-none'"} id="sid${data[d].sample_id}">
           ${data[d].pid === undefined ? "<a href=\"#\" onclick=\"lookupPID('" + data[d].sample_id + "');\">" +  
             "<img src=\"images/search.svg\" alt=\"Lookup PID\"/></a>" : data[d].pid }</td>
@@ -213,7 +236,7 @@ function saveSettings() {
     data: JSON.stringify ({setting :  settings}),
     contentType: "application/json"
   }).done((data) => {
-    showToast("Settings Saved.")
+    showToast("Settings Saved.");
     getSettings();
   }).
   fail((jqXHR, textStatus, errorThrow) => {
@@ -222,7 +245,7 @@ function saveSettings() {
 }
 function showModal(title, body) {
   $("#myModalLabel").text(title);
-  $(".modal-body").text(body);
+  $(".modal-body").html(body);
   const myModal = new bootstrap.Modal("#myModal");
   myModal.show();
 }

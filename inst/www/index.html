@@ -41,6 +41,11 @@
             $("#search").attr("placeholder", `Search by Sample ID or ${data.pidName}`)
             $("#pidcolumn").text(data.pidName);
           }
+          // are we running in rstudio?
+          if(data.debug) {
+            $("#logoutbtn").removeClass("d-none").click((e) => { window.location = "test?action=logout" });
+            $("#deletedbbtn").removeClass("d-none").click((e) => { window.location = "test?action=deletedb" });
+          }
           // is a setting needed?  nav to the settings tab
           if(data.configNeeded) new bootstrap.Tab("#pills-setting-tab").show()
         }
@@ -62,8 +67,10 @@
   </script>
   <div id="main-container" class="container-sm">
     <div class="row mt-2">
-      <div class="col-md-10"><h2>Xpert Import Tool</h2></div>
-      <div class="col-md-2 text-end">
+      <div class="col-md-8"><h2>Xpert Import Tool</h2></div>
+      <div class="col-md-4 text-end">
+        <button id="logoutbtn" type="button" class="btn btn-secondary d-none">Logout</button>
+        <button id="deletedbbtn" type="button" class="btn btn-warning d-none">Delete DB</button>
         <button id="statusbtn" type="button" class="btn btn-warning" disabled>Offline</button></div>
     </div>
     <ul class="nav nav-tabs mt-2 mb-2" id="pills-tab" role="tablist">
@@ -135,8 +142,18 @@
     <div class="tab-pane fade" id="pills-setting" role="tabpanel" aria-labelledby="pills-setting-tab"
       tabindex="0">
       <form class="row" id="settingsForm">
-        <div class="col-md-2 text-end">
-          <input class='btn btn-primary' type='submit' value='Save'/>
+        <div class="col-md-2">
+          <div class="row">
+            <div class="col text-center mt-3">
+              <input class='btn btn-primary' type='submit' value='Save'/>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col text-center mt-3">
+              <a class="btn btn-outline-primary" href="Test_Results.pdf" download="Test_Results.pdf">Test File
+                <img src="images/download.svg" width="20" height="20"/></a>
+            </div>
+          </div>
         </div>
         <div class="col-md-10 overflow-y-scroll border-bottom" style="height: 80vh;" id="settingsDiv"></div>
       </form>

@@ -179,20 +179,46 @@ function(id, res) {
     res$status <- 500
     return(list(msg = "CRF upload failed", err = e$message))
   })
-  result <- tryCatch({
-    con <- dbConnect(RSQLite::SQLite(), "xpertdb")
-    result <- dbplyr::get_returned_rows(tbl(con, "xpert_results") %>%
-                                rows_update(dbplyr::copy_inline(con, tibble(id = result) %>%
-                                                                  mutate(uploaded = format(lubridate::now(tzone = "GMT")))),
-                                            by = "id", unmatched = "ignore",
-                                            in_place = T, returning=c("id", "uploaded")))
-    dbDisconnect(con)
-    result
-  }, error = function(e) {
-    res$status <- 500
-    return(list(msg = "Unable to save CRF update time to database", err = e$message))
-  })
+  if(class(result) != "list") { #did we get an error or a result
+    result <- tryCatch({
+      con <- dbConnect(RSQLite::SQLite(), "xpertdb")
+      result <- dbplyr::get_returned_rows(tbl(con, "xpert_results") %>%
+                                  rows_update(dbplyr::copy_inline(con, tibble(id = result) %>%
+                                                                    mutate(uploaded = format(lubridate::now(tzone = "GMT")))),
+                                              by = "id", unmatched = "ignore",
+                                              in_place = T, returning=c("id", "uploaded")))
+      dbDisconnect(con)
+      result
+    }, error = function(e) {
+      res$status <- 500
+      return(list(msg = "Unable to save CRF update time to database", err = e$message))
+    })
+  }
   result
+}
+
+#* Delete a sample (and CRF data)
+#* @delete /delete
+#* @param id:int
+function(id, res) {
+  tryCatch({
+    crf$crfDelete(id, config)
+  }, error = function(e) {
+    res$status = 500
+    return(list(msg="Unable to Delete CRF", err=e$message()))
+  })
+  # Delete from the local database 
+  con <- dbConnect(RSQLite::SQLite(), "xpertdb")
+  result <-  dbSendStatement(con, paste("DELETE FROM xpert_results WHERE id =", id))
+  count <- dbGetRowsAffected(result)
+  dbClearResult(result)
+  dbDisconnect(con)
+  if (count != length(id)) {
+    res$status_code <- 500
+    return(list(msg="Unable to delete from database",
+                err = paste("Deleted", count, "samples but expected to delete", length(id), "samples")))
+  }
+  list()
 }
 
 #* Return xpert pdf
@@ -244,7 +270,7 @@ function(q, res) {
     dbDisconnect(con)
   }, error = function(e) {
     res$status <- 500
-    df <<- list(list(msg = "Search error, database may be empty", err = e$message))
+    df <<- list(list(msg = "Search error, database is empty", err = e$message))
   })
   return(df)
 }
@@ -253,7 +279,7 @@ function(q, res) {
 #* @get /config
 function() {
   return (list(usePID = config$config$usePID$value, pidName = config$config$pidName$value, 
-               configNeeded = config$configNeeded()))
+               configNeeded = config$configNeeded(), debug = interactive()))
 }
 
 #* Get settings
@@ -360,7 +386,14 @@ function(pr) {
         keyring::key_get("plumber_api")
       })
     pr <- pr %>% pr_cookie(key, name="plumber", path="/", expiration = config$config$timeout$value) %>%
-      pr_filter("auth", authFilter)
+      pr_filter("auth", authFilter) 
+    # add logout ep for testing
+    if (interactive()) pr <- pr %>% pr_get("/test", function(action, req, res) {
+        if (action == "logout") req$session$plumber <- NULL
+        else if (action == "deletedb") file.remove("xpertdb")
+        res$status <- 307
+        res$setHeader("Location", "/")
+      })
   }
   # Add websocket support no monitor connections
   pr$websocket(

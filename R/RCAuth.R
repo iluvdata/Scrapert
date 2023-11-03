@@ -7,7 +7,7 @@
 RCAuth <- function(config) {
   config$addConfig(
     RCAuthApi = list(label = "REDCap Auth API URL", type="url", required=TRUE),
-    RCAuthPID = list(label = "REDCap Project ID Containing Authentication Active Link", type="number", required=TRUE),
+    RCAuthPID = list(),
     RCAuthApiKey = list(label = "REDCap Auth Project API Key", type="password")
   )
   needsKey <- tryCatch({
@@ -94,7 +94,7 @@ RCAuthProcess = function(req, res, config) {
   if (!is.null(req$args$RCAuthAPI)) {
     config$config$RCAuthApi$value <- req$args$RCAuthAPI
     config$saveToFile("config.yml")
-    res$status <- 307 # temp redirect
+    res$status <- 303 # temp redirect
     res$setHeader("Location", "/") #try again
     return(NULL)
   }
@@ -113,8 +113,10 @@ RCAuthProcess = function(req, res, config) {
     res$setHeader("Content-Type", "text/plain")
     return(sprintf("There was an error verifying authkey. Status %i. Message: %s", req$status, rawtext))
   }
+  config$config$RCAuthPID$value <- status$project_id
+  config$saveToFile("config.yml")
   RCsetUser(status$username, config, req)
-  res$status <- 307
+  res$status <- 303
   res$setHeader("Location", "/")
 }
 

@@ -74,7 +74,7 @@ RCupdateCRF <- function(id, config) {
 #' REDCap Delete CRF
 #'
 #' @param id the row id in xpertdb
-#' @param \link{Config} object
+#' @param config \link{Config} object
 #'
 #' @return \code{NULL} if successful
 RCCRFDelete <- function(id, config) {

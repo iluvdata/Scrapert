@@ -122,9 +122,9 @@ Config <- R6Class("Config",
         #' Add a configuration item to the stack or add metadata to existing entry
         #' @param ... named list to add (see examples)
         #' @examples
-                #' config$addConfig(
-                #'   xpertTZ = list(label="Timezone of Xpert Machine", required = TRUE, opts = OlsonNames)
-                #' )
+                #' # config$addConfig(
+                #' #   xpertTZ = list(label="Timezone of Xpert Machine", required = TRUE, opts = OlsonNames)
+                #' #)
     addConfig = function(...) {
       self$config <- purrr::list_merge(self$config, ...)
     }

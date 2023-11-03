@@ -30,15 +30,15 @@ Holds configuration for Scrapert
 ## Method `Config$print`
 ## ------------------------------------------------
 
-config
+#config
 
 ## ------------------------------------------------
 ## Method `Config$addConfig`
 ## ------------------------------------------------
 
-config$addConfig(
-  xpertTZ = list(label="Timezone of Xpert Machine", required = TRUE, opts = OlsonNames)
-)
+# config$addConfig(
+#   xpertTZ = list(label="Timezone of Xpert Machine", required = TRUE, opts = OlsonNames)
+#)
 }
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
@@ -186,7 +186,7 @@ print to terminal in yaml
 
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
-\preformatted{config
+\preformatted{#config
 }
 \if{html}{\out{</div>}}
 
@@ -254,9 +254,9 @@ Add a configuration item to the stack or add metadata to existing entry
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
-\preformatted{config$addConfig(
-  xpertTZ = list(label="Timezone of Xpert Machine", required = TRUE, opts = OlsonNames)
-)
+\preformatted{# config$addConfig(
+#   xpertTZ = list(label="Timezone of Xpert Machine", required = TRUE, opts = OlsonNames)
+#)
 }
 \if{html}{\out{</div>}}
 

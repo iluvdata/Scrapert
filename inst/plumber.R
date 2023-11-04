@@ -24,12 +24,12 @@ crf <- if (!is.null(config$modules$crf)) do.call(config$modules$crf, list(config
 function (req, res) {
   xpert <- lapply(req$body, function(x) {
     if (x$content_type != "application/pdf") stop(paste(x$filename, "is not a valid pdf file."))
-    list(pdf = x$value, filename = x$filename, raw_text = pdf_text(x$value))
+    list(pdf = x$value, filename = x$filename, raw_text = pdftools::pdf_text(x$value))
   })
   # Split into reports (remove signature page)
   xpert <- lapply(xpert , function(x) {
     # which pages have data
-    pages <- x$raw_text %>% str_detect("Sample ID")
+    pages <- x$raw_text %>% stringr::str_detect("Sample ID")
     # are there no valid pages?f
     if (!any(pages)) stop(glue::glue("{x$filename} is not a valid Xpert HPV output file."))
     x$filename <- NULL
@@ -40,14 +40,14 @@ function (req, res) {
     writeBin(x$pdf, pdf)
     close(pdf)
     # Split into pages and return paths
-    x$pdf <- pdf_split(pdfpath)
+    x$pdf <- pdftools::pdf_split(pdfpath)
     # Delete unwanted files
     file.remove(x$pdf[!pages])
     x$pdf <- x$pdf[pages]
     # compress remaining pages as pdf_split isn't efficient
     x$pdf <- sapply(x$pdf, function(x) {
       pdfpath <- tempfile(fileext = ".pdf")
-      pdf_compress(x, pdfpath)
+      pdftools::pdf_compress(x, pdfpath)
       file.remove(x)
       pdfpath
     })
@@ -55,20 +55,20 @@ function (req, res) {
   })
   xpert <- bind_rows(xpert)
   # Get the tabular results
-  tbl <- str_replace_all(
-    str_extract(xpert$raw_text, "SAC[[:graph:]\\s\\n]+(?=\\n{3}User:)"),
+  tbl <- stringr::str_replace_all(
+    stringr::str_extract(xpert$raw_text, "SAC[[:graph:]\\s\\n]+(?=\\n{3}User:)"),
     "(?<=HPV)\\s(?=\\d{2})", "_") %>%
     lapply(readr::read_table, col_names = c("analyte", "ct", "end_point", "result", "probe_check")) %>%
     lapply(select, c("analyte", "ct", "result"))
   df <- tibble(
     sample_id = keyed_value("Sample ID\\*?", xpert$raw_text),
     test_result =
-      str_replace_all(
-        str_extract(xpert$raw_text, "(?<=Test\\sResult:\\s{1,30})HPV[[:graph:]\\s\\n]+(?=\\n\\-\\nAnalyte)"),
+      stringr::str_replace_all(
+        stringr::str_extract(xpert$raw_text, "(?<=Test\\sResult:\\s{1,30})HPV[[:graph:]\\s\\n]+(?=\\n\\-\\nAnalyte)"),
         "\\n\\s{2,}", " "),
     status = keyed_value("Status", xpert$raw_text),
     error = keyed_value("Error Status", xpert$raw_text),
-    error_message = str_extract(xpert$raw_text, "(?<=Errors\\n)[:graph:]+"),
+    error_message = stringr::str_extract(xpert$raw_text, "(?<=Errors\\n)[:graph:]+"),
     start_time = keyed_ts("Start Time", xpert$raw_text, config$config$xpertTZ$value),
     end_time = keyed_ts("End Time", xpert$raw_text, config$config$xpertTZ$value),
     instrument_sn = keyed_value("Instrument S/N", xpert$raw_text),
@@ -87,8 +87,8 @@ function (req, res) {
     relocate(starts_with(c("SAC", "HPV_16", "HPV_18", "P3", "P4", "P5")), .after="error")
   rm(tbl, xpert)
   # Write to DB
-  con <- dbConnect(RSQLite::SQLite(), "xpertdb")
-  if (!dbExistsTable(con, "xpert_results")) {
+  con <- DBI::dbConnect(RSQLite::SQLite(), "xpertdb")
+  if (!DBI::dbExistsTable(con, "xpert_results")) {
     # Create the table
     sql <- paste0("CREATE TABLE xpert_results (id INTEGER PRIMARY KEY ASC, sample_id TEXT,  pid TEXT, test_result TEXT, ",
                   "status TEXT,  error TEXT,  uploaded TEXT,",
@@ -96,10 +96,10 @@ function (req, res) {
                   "HPV_18_45_result TEXT,  P3_ct REAL,  P3_result TEXT,  P4_ct REAL,  P4_result TEXT,  P5_ct REAL,",
                   "P5_result TEXT,  error_message TEXT,  start_time TEXT,  end_time TEXT,  instrument_sn TEXT,  ",
                   "cartridge_sn TEXT,  reagant_lot TEXT, processed_by TEXT, notes TEXT, raw_text TEXT, pdf BLOB)")
-    rs <- dbSendStatement(con, sql)
-    dbClearResult(rs)
-    rs <- dbSendStatement(con, "CREATE UNIQUE INDEX samp_run ON xpert_results (sample_id, cartridge_sn)")
-    dbClearResult(rs)
+    rs <- DBI::dbSendStatement(con, sql)
+    DBI::dbClearResult(rs)
+    rs <- DBI::dbSendStatement(con, "CREATE UNIQUE INDEX samp_run ON xpert_results (sample_id, cartridge_sn)")
+    DBI::dbClearResult(rs)
   }
 
   # Add in user data if exists
@@ -120,7 +120,7 @@ function (req, res) {
   msg <- list()
   # appended to the database
   tryCatch({
-    dbAppendTable(con, "xpert_results", df)
+    DBI::dbAppendTable(con, "xpert_results", df)
   }, error = function(e) {
     # Create error message
     msg <<- list(msg = paste("One or more results already exists in the local database.",
@@ -131,7 +131,7 @@ function (req, res) {
   df <- tbl(con, "xpert_results") %>%
     select(!c(pdf, raw_text)) %>% filter(cartridge_sn %in% local(df$cartridge_sn)) %>% collect() %>%
     modifiedXpert(config)
-  dbDisconnect(con)
+  DBI::dbDisconnect(con)
   list(results = df, message = msg)
 }
 
@@ -152,12 +152,12 @@ function(sampleid, res) {
   # Did we get an error?  result should be a tibble
   if ("data.frame" %in% class(result)) {
     tryCatch({
-      con <- dbConnect(RSQLite::SQLite(), "xpertdb")
+      con <- DBI::dbConnect(RSQLite::SQLite(), "xpertdb")
       # upddate pids
       result <- dbplyr::get_returned_rows(tbl(con, "xpert_results") %>%
                                             rows_update(dbplyr::copy_inline(con, result), by = "sample_id", unmatched = "ignore",
                                                         in_place = T, returning=c("sample_id", "pid")))
-      dbDisconnect(con)
+      DBI::dbDisconnect(con)
     }, error = function(e){
       res$status <- 500
       result <<- list(msg = "Unable to save PID to database", err = e$message)
@@ -181,13 +181,13 @@ function(id, res) {
   })
   if(class(result) != "list") { #did we get an error or a result
     result <- tryCatch({
-      con <- dbConnect(RSQLite::SQLite(), "xpertdb")
+      con <-DBI::dbConnect(RSQLite::SQLite(), "xpertdb")
       result <- dbplyr::get_returned_rows(tbl(con, "xpert_results") %>%
                                   rows_update(dbplyr::copy_inline(con, tibble(id = result) %>%
                                                                     mutate(uploaded = format(lubridate::now(tzone = "GMT")))),
                                               by = "id", unmatched = "ignore",
                                               in_place = T, returning=c("id", "uploaded")))
-      dbDisconnect(con)
+      DBI::dbDisconnect(con)
       result
     }, error = function(e) {
       res$status <- 500
@@ -204,15 +204,15 @@ function(id, res) {
   tryCatch({
     crf$crfDelete(id, config)
   }, error = function(e) {
-    res$status = 500
-    return(list(msg="Unable to Delete CRF", err=e$message()))
+    res$status <- 500
+    return(list(msg="Unable to Delete CRF", err=e$message))
   })
   # Delete from the local database 
-  con <- dbConnect(RSQLite::SQLite(), "xpertdb")
-  result <-  dbSendStatement(con, paste("DELETE FROM xpert_results WHERE id =", id))
-  count <- dbGetRowsAffected(result)
-  dbClearResult(result)
-  dbDisconnect(con)
+  con <- DBI::dbConnect(RSQLite::SQLite(), "xpertdb")
+  result <-  DBI::dbSendStatement(con, paste("DELETE FROM xpert_results WHERE id =", id))
+  count <- DBI::dbGetRowsAffected(result)
+  DBI::dbClearResult(result)
+  DBI::dbDisconnect(con)
   if (count != length(id)) {
     res$status_code <- 500
     return(list(msg="Unable to delete from database",
@@ -226,9 +226,9 @@ function(id, res) {
 #* @param id:int
 #* @serializer contentType list(type="application/pdf")
 function(id, dl, res) {
-  con <- dbConnect(RSQLite::SQLite(), "xpertdb")
+  con <- DBI::dbConnect(RSQLite::SQLite(), "xpertdb")
   df <- tbl(con, "xpert_results") %>% filter(id == local(id)) %>% select(sample_id, pdf) %>% collect()
-  dbDisconnect(con)
+  DBI::dbDisconnect(con)
   if(length(df) == 0) {
     res$status = 404
     return(list(error="PDF not found."))
@@ -243,11 +243,11 @@ function(id, dl, res) {
 function(id, res) {
   csv <- NULL
   tryCatch({
-    con <- dbConnect(RSQLite::SQLite(), "xpertdb")
+    con <- DBI::dbConnect(RSQLite::SQLite(), "xpertdb")
     csv <- tbl(con, "xpert_results") %>% select(!c(pdf, id, raw_text)) %>% collect() %>%
       modifiedXpert(config)
     names(csv$pid) <- config$config$pidName$value
-    dbDisconnect(con)
+    DBI::dbDisconnect(con)
   }, error = function(e) { 
     res$status <- 404
     res$headers <- list(contentType = "text/plain")
@@ -263,11 +263,11 @@ function(q, res) {
   if (nchar(q) < 2) return("")
   df <- NULL
   tryCatch({
-    con <- dbConnect(RSQLite::SQLite(), "xpertdb")
+    con <- DBI::dbConnect(RSQLite::SQLite(), "xpertdb")
     df <- tbl(con, "xpert_results") %>% select(!c(pdf, raw_text)) %>%
       filter(sample_id %like% local(paste0("%", q, "%")) | pid %like%  local(paste0("%", q, "%"))) %>% collect() %>%
       modifiedXpert(config)
-    dbDisconnect(con)
+    DBI::dbDisconnect(con)
   }, error = function(e) {
     res$status <- 500
     df <<- list(list(msg = "Search error, database is empty", err = e$message))
@@ -326,9 +326,9 @@ authFilter <- function(req, res) {
   forward()
 }
 
-# static files
-#* @assets ./www/ /
-list()
+# # static files
+# #* @assets ./www/ /
+# list()
 
 # the following is for the websocket tracking
 clients <- list()
@@ -356,6 +356,7 @@ exitPlumber <- function() {
   if(!interactive()) file.remove(system.file("plumber.lock"))
   message("Scrapert out!\n")
   if (!interactive()) quit("no")
+  file.remove(".plumber.R")
 }
 
 # Scrapert entry point
@@ -428,7 +429,8 @@ function(pr) {
       })
     }
   )
-  pr %>% pr_set_docs(TRUE) %>% pr_set_serializer(serializer_unboxed_json()) %>%
+  pr %>% pr_static("/", system.file("/www/", package="Scrapert")) %>%
+    pr_set_docs(TRUE) %>% pr_set_serializer(serializer_unboxed_json()) %>%
     pr_hook("exit", function() {
       exitPlumber()
     }) %>%

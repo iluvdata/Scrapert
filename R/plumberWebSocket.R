@@ -5,10 +5,21 @@ library(plumber)
 #' @title Plumber Web Sockets
 #' @description
 #' \link[plumber]{Plumber} wrapper to support Websockets
-#' 
+#' @export
 PlumberWebSocket <- R6Class("PlumberWebSocket", 
                             inherit = Plumber,
                             public = list(
+                              #' @description
+                              #' see \link[plumber]{Plumber}
+                              #' 
+                              #' @param f location of file to be plumbed
+                              #' @param wd working directory to launch in and override Plumber's default (where the script resides)
+                              #' 
+                              #' This wrapper is used to correct the working directory
+                              initialize = function(f, wd = getwd()) {
+                                file.copy(f, paste0(wd, "/.plumber.R"))
+                                super$initialize(paste0(wd, "/.plumber.R"))
+                              },
                               #' @description
                               #' event fired when websocket is opened
                               #' 

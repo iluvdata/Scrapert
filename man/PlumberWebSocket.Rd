@@ -12,6 +12,7 @@
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
+\item \href{#method-PlumberWebSocket-new}{\code{PlumberWebSocket$new()}}
 \item \href{#method-PlumberWebSocket-onWSOpen}{\code{PlumberWebSocket$onWSOpen()}}
 \item \href{#method-PlumberWebSocket-websocket}{\code{PlumberWebSocket$websocket()}}
 \item \href{#method-PlumberWebSocket-clone}{\code{PlumberWebSocket$clone()}}
@@ -30,7 +31,6 @@
 <li><span class="pkg-link" data-pkg="plumber" data-topic="Plumber" data-id="getApiSpec"><a href='../../plumber/html/Plumber.html#method-Plumber-getApiSpec'><code>plumber::Plumber$getApiSpec()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="plumber" data-topic="Plumber" data-id="getDebug"><a href='../../plumber/html/Plumber.html#method-Plumber-getDebug'><code>plumber::Plumber$getDebug()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="plumber" data-topic="Plumber" data-id="handle"><a href='../../plumber/html/Plumber.html#method-Plumber-handle'><code>plumber::Plumber$handle()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="plumber" data-topic="Plumber" data-id="initialize"><a href='../../plumber/html/Plumber.html#method-Plumber-initialize'><code>plumber::Plumber$initialize()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="plumber" data-topic="Plumber" data-id="mount"><a href='../../plumber/html/Plumber.html#method-Plumber-mount'><code>plumber::Plumber$mount()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="plumber" data-topic="Plumber" data-id="onHeaders"><a href='../../plumber/html/Plumber.html#method-Plumber-onHeaders'><code>plumber::Plumber$onHeaders()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="plumber" data-topic="Plumber" data-id="openAPIFile"><a href='../../plumber/html/Plumber.html#method-Plumber-openAPIFile'><code>plumber::Plumber$openAPIFile()</code></a></span></li>
@@ -53,6 +53,27 @@
 </ul>
 </details>
 }}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-PlumberWebSocket-new"></a>}}
+\if{latex}{\out{\hypertarget{method-PlumberWebSocket-new}{}}}
+\subsection{Method \code{new()}}{
+see \link[plumber]{Plumber}
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{PlumberWebSocket$new(f, wd = getwd())}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{f}}{location of file to be plumbed}
+
+\item{\code{wd}}{working directory to launch in and override Plumber's default (where the script resides)
+
+This wrapper is used to correct the working directory}
+}
+\if{html}{\out{</div>}}
+}
+}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-PlumberWebSocket-onWSOpen"></a>}}
 \if{latex}{\out{\hypertarget{method-PlumberWebSocket-onWSOpen}{}}}

@@ -4,6 +4,7 @@
 #' Performs pid lookup from REDCap
 #' @param config \link{Config} object
 #' @return a list of functions for plumber to reference
+#' @export
 RCPID <- function(config) {
   config$addConfig(
     RCPIDApi = list(label = "REDCap PID Project API URL", type="url", required=TRUE),

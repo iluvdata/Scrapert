@@ -4,6 +4,7 @@
 #' Performs authentication to REDCap
 #' @param config \link{Config} object
 #' @return a list of functions for plumber to reference
+#' @export
 RCAuth <- function(config) {
   config$addConfig(
     RCAuthApi = list(label = "REDCap Auth API URL", type="url", required=TRUE),
@@ -17,7 +18,7 @@ RCAuth <- function(config) {
     TRUE
   })
   if (needsKey) config$config$RCAuthApiKey$needed = TRUE
-  return(list(auth = doRCAuth, checkAuth = RCAuthProcess, setUser = RCsetUser, filterex = "(^/authep)|(^/RCConfig.html)"))
+  return(list(auth = doRCAuth, checkAuth = RCAuthProcess, setUser = RCsetUser, filterex = "(^/authep)|(^/RCConfig.html)|(^/css.*)|(^/js)"))
 }
 
 #' Auth function for RECCap
@@ -30,6 +31,7 @@ RCAuth <- function(config) {
 #'
 #' @return NULL if authenticated, a string URL to the REDCap project providing the authentication active link (see \link{RCAuthProcess}) 
 #' for more information about the format of the REDCap active link).  Otherwise will return \code{list(err = "error message here")}
+#' @export
 doRCAuth <- function(req, res, config) {
   if(!is.null(req$session)) {
     if(!is.null(req$session$plumber$username)) return(NULL)
@@ -89,6 +91,7 @@ doRCAuth <- function(req, res, config) {
 #'
 #' @return \code{list(username = username)} if successful otherwise \code{list(err = "error message")} and/or sending
 #' \code{res$status <- 401} (not authenticated)
+#' @export
 RCAuthProcess = function(req, res, config) {
   # Are we trying to set the REDCap API URL?
   if (!is.null(req$args$RCAuthAPI)) {

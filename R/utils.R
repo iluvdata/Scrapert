@@ -8,14 +8,16 @@
 #' @param txt source of extraction
 #'
 #' @return the value after the key
+#' @export
 keyed_value <- function(key, txt) {
-  str_extract(txt, paste0("(?<=", str_replace_all(key, "\\s", "\\\\s"), ":\\s{1,30})[:alnum:]+"))
+  stringr::str_extract(txt, paste0("(?<=", stringr::str_replace_all(key, "\\s", "\\\\s"), ":\\s{1,30})[:alnum:]+"))
 }
 
 #' @rdname keyed_value
 #' @param tz Olson Name tz of value
+#' @export
 keyed_ts <- function(key, txt, tz) {
-  value <- as.POSIXct(str_extract(txt, paste0("(?<=", str_replace_all(key, "\\s", "\\\\s"),
+  value <- as.POSIXct(stringr::str_extract(txt, paste0("(?<=", stringr::str_replace_all(key, "\\s", "\\\\s"),
                                               ":\\s{1,30})[:graph:]{8}\\s[:graph:]{8}")),
                       tryFormats = "%m/%d/%y %H:%M:%S", tz = tz)
   # Convert to UTC
@@ -29,6 +31,7 @@ keyed_ts <- function(key, txt, tz) {
 #' @param df dataframe with Xpert data
 #' @param config \link{Config} R6 class
 #' @return dataframe with \code{restricted_result} and \code{mod_ct_result} columns added
+#' @export
 modifiedXpert <- function(df, config) {
   df <- df %>% mutate(
     use16 = config$xpert[["16"]]$use,

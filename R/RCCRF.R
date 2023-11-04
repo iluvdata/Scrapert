@@ -4,6 +4,7 @@
 #' Performs CRF upload to REDCap
 #' @param config \link{Config} object
 #' @return a list of functions for plumber to reference
+#' @export
 RCCRF <- function(config) {
   config$addConfig(
     RCCRFApi = list(label = "REDCap CRF API URL", type="url", required=TRUE),
@@ -77,6 +78,7 @@ RCupdateCRF <- function(id, config) {
 #' @param config \link{Config} object
 #'
 #' @return \code{NULL} if successful
+#' @export
 RCCRFDelete <- function(id, config) {
   key <- RCCRFgetKey(config)
   con <- dbConnect(RSQLite::SQLite(), "xpertdb")
@@ -84,27 +86,8 @@ RCCRFDelete <- function(id, config) {
     select(id, sample_id) %>% collect() %>% 
     # get the record numbers
     RCCRFgetRecordId(config, key)
-  # We don't delete just remove values
+  # delete the files first
   dbDisconnect(con)
-  data <- list(
-    token = keyring::key_get("Scrapert-RCCRFApiKey"),
-    content = "record",
-    format = "csv",
-    type = "flat",
-    overWriteBehavior = "normal",
-    forceAutoNumber = "false",
-    returnContent = "count",
-    returnFormat = "json",
-    data = readr::format_csv(df %>% select(record_id, -sample_id, -id) %>%
-                               mutate(xpert_result_complete = 0, xpert_result = "", xpert_timestamp = "",
-                                      cartridge_sn = "", xpert_processed_by = ""))
-    
-  )
-  response <- httr::POST(config$config$RCCRFApi$value, body = data, encode = "form")
-  if (response$status_code != 200) stop(paste("REDCap Error deleting CRF data", response$status_code, httr::content(response)))
-  count <-as.integer(httr::content(response)$count)
-  if (count != length(id)) stop(paste("REDCap only deleted", count, "records but deletion ", length(id), "records was requested"))
-  # Now for the file
   data <- list(
     token = key,
     action = "delete",
@@ -116,6 +99,24 @@ RCCRFDelete <- function(id, config) {
   )
   response <- httr::POST(config$config$RCCRFApi$value, body = data, encode = "form")
   if (response$status_code != 200) stop(paste("REDCap File delete Error", response$status_code, httr::content(response)))
+  # We don't delete just remove values
+  data <- list(
+    token = keyring::key_get("Scrapert-RCCRFApiKey"),
+    content = "record",
+    format = "csv",
+    type = "flat",
+    overwriteBehavior = "overwrite",
+    forceAutoNumber = "false",
+    returnContent = "count",
+    returnFormat = "json",
+    data = readr::format_csv(df %>% select(record_id, -sample_id, -id) %>%
+                               mutate(xpert_result_complete = "", xpert_result = "", xpert_timestamp = "",
+                                      cartridge_sn = "", xpert_processed_by = ""))
+  )
+  response <- httr::POST(config$config$RCCRFApi$value, body = data, encode = "form")
+  if (response$status_code != 200) stop(paste("REDCap Error deleting CRF data", response$status_code, httr::content(response)))
+  count <-as.integer(httr::content(response)$count)
+  if (count != length(id)) stop(paste("REDCap only deleted", count, "records but deletion ", length(id), "records was requested"))
   NULL
 }
 

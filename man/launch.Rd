@@ -23,5 +23,4 @@ The database, the config file, and the log will all be located in the working di
 
 # Scrapert::launch("/path/to/working_dir")
 
-
 }

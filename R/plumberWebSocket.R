@@ -18,7 +18,7 @@ PlumberWebSocket <- R6Class("PlumberWebSocket",
     #' This wrapper is used to correct the working directory
     initialize = function(f, wd = getwd()) {
       file.copy(f, paste0(wd, "/.plumber.R"))
-      super$initialize(paste0(wd, "/.plumber.R"))
+      super$initialize(".plumber.R")
     },
     #' @description
     #' event fired when websocket is opened

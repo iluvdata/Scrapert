@@ -1,6 +1,6 @@
 <html lang="en">
 <head>
-  <title>Xpert HPV REDCap API URL</title>
+  <title>Xpert HPV Configuration</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="css/bootstrap.min.css" rel="stylesheet" 
@@ -9,13 +9,19 @@
 <body>
   <div id="main-container" class="container-sm">
     <div class="row">
-      <div class="col-md-12 mt-3"><h3>REDCap API URL Required</h3></div>
+      <div class="col-md-12 mt-3"><h3>REDCap Authenitication API Setup</h3></div>
     </div>
     <form action="authep" method="post">
     <div class="row">
       <div class="col-md-12 mt-3">
-        <label for="RCAPI" class="form-label fw-bold">REDCap API URL</label>
+        <label for="RCAuthAPI" class="form-label fw-bold">REDCap Authentication Project API URL</label>
         <input type="url" class="form-control" name="RCAuthAPI" placeholder="https://..." required>
+      </div>
+    </div>
+        <div class="row">
+      <div class="col-md-12 mt-3">
+        <label for="RCAuthAPIKey" class="form-label fw-bold">REDCap Authentication Project API Token/Key</label>
+        <input type="password" class="form-control" name="RCAuthAPIKey" required>
       </div>
     </div>
     <div class="row">

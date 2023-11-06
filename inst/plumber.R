@@ -348,8 +348,13 @@ sto <- tofuns()
 
 exitPlumber <- function() {
   # Delete the lock file
-  clients <<- NULL
   if(!interactive()) file.remove(system.file("plumber.lock"))
+  clients <<- NULL
+  # Cancel the timout
+  if (!is.null(sto)) {
+    sto()
+    sto <<- NULL
+  }
   message("Scrapert out!\n")
   if (!interactive()) quit("no")
   file.remove(".plumber.R")

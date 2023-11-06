@@ -11,13 +11,6 @@ RCAuth <- function(config) {
     RCAuthPID = list(),
     RCAuthApiKey = list(label = "REDCap Auth Project API Key", type="password")
   )
-  needsKey <- tryCatch({
-    keyring::key_get("Scrapert-RCAuthApiKey")
-    FALSE
-  }, error = function (e) {
-    TRUE
-  })
-  if (needsKey) config$config$RCAuthApiKey$needed = TRUE
   return(list(auth = doRCAuth, checkAuth = RCAuthProcess, setUser = RCsetUser, filterex = "(^/authep)|(^/RCConfig.html)|(^/css.*)|(^/js)"))
 }
 
@@ -33,18 +26,16 @@ RCAuth <- function(config) {
 #' for more information about the format of the REDCap active link).  Otherwise will return \code{list(err = "error message here")}
 #' @export
 doRCAuth <- function(req, res, config) {
-  if(!is.null(req$session)) {
-    if(!is.null(req$session$plumber$username)) {
-      # Do we need to recheck our auth
-      if (req$session$plumber$expires < lubridate::now()) {
-        result <- RCAuthToken(req$session$plumber$token, config)
-        if (!is.null(result$username)) return(NULL)
-        # 1. send a ws message to error out and redirect
-        # 2. ws will need to know it's client id --> session (DONE in the session cookie)
-        # 3. what if loading a url (pdf, cvs)?  we need to redirect below (do nothing here) (do this by PATH)
-      }
-      else return(NULL)
+  if(!is.null(req$session$plumber$username)) {
+    # Do we need to recheck our auth
+    if (req$session$plumber$expires < lubridate::now()) {
+      result <- RCAuthToken(req$session$plumber$token, config)
+      if (!is.null(result$username)) return(NULL)
+      # 1. send a ws message to error out and redirect
+      # 2. ws will need to know it's client id --> session (DONE in the session cookie)
+      # 3. what if loading a url (pdf, cvs)?  we need to redirect below (do nothing here) (do this by PATH)
     }
+    else return(NULL)
   }
   if (is.null(config$config$RCAuthApi$value)) {
     warning("RCAuthApi not set in config")
@@ -58,16 +49,10 @@ doRCAuth <- function(req, res, config) {
     return(NULL)
   })
   if (is.null(key)) {
-    config$config$RCAuthApiKey$needed <- TRUE
-    # Display a page stating we need the key value set
-    # This cookie will let the browser know we need a setting
-    res$setHeader("Content-Type", "text/html")
-    rcurl <- paste0(stringr::str_extract(config$config$RCAuthApi$value, ".*(?=(/api/$))"), "/index.php?action=myprojects")
-    return(list(err = paste("<head><title>Not Authenticated</title><body><h1>Xpert Import Tool</h1><hr>",
-                            "The REDCap Auth API Key is not set. You must:<ol>", 
-                            "<li>Access this app from the REDCap Auth Project Active Link.</li>",
-                            "<li>Enter the REDCap Auth API Key on the \"Settings\" tab.</li></ol>",
-                            "<p>REDCap URL: <a href='", rcurl, "'>", rcurl, "</a></p></body></html>")))
+    warning("RCAuthApiKey not set in keyring")
+    res$status <- 307
+    res$setHeader("Location", "RCConfig.html")
+    return (list(redirect = TRUE))
   }
   # Build the correct url based on version
   response <- httr::POST(config$config$RCAuthApi$value,
@@ -79,6 +64,20 @@ doRCAuth <- function(req, res, config) {
   if (response$status_code != 200) stop(paste("Unable to get REDCap project url",
                                               httr::content(response)))
   v <- httr::content(response, as="text")
+  if(is.null(config$config$RCAuthPID$value)) {
+    response <- httr::POST(config$config$RCAuthApi$value,
+                           body = list(
+                             token = key,
+                             content = "project",
+                             format = "json",
+                             returnFormat = "json"),
+                           encode = "form")
+    if (response$status_code != 200) stop(paste("Unable to get REDCap project url",
+                                                httr::content(response)))
+    pid <- httr::content(response)$project_id
+    config$config$RCAuthPID$value <- as.integer(httr::content(response))
+    config$saveToFile("config.yml")
+  }
   res$status <- 307
   res$setHeader("Location", paste(stringr::str_extract(config$config$RCAuthApi$value, ".*(?=(/api/$))"),
                           paste0("redcap_v", v),
@@ -100,16 +99,17 @@ doRCAuth <- function(req, res, config) {
 #' @param config \link{Config} object
 #'
 #' @return \code{list(username = username)} if successful otherwise \code{list(err = "error message")} and/or sending
-#' \code{res$status <- 401} (not authenticated)
+#' \code{res$status <- 401} (not authenticated). Will redirect if RCAuthAPI is posted as an arg after saving the config
 #' @export
 RCAuthProcess = function(req, res, config) {
-  # Are we trying to set the REDCap API URL?
+  # Are we trying to set the REDCap API URL and key?
   if (!is.null(req$args$RCAuthAPI)) {
     config$config$RCAuthApi$value <- req$args$RCAuthAPI
     config$saveToFile("config.yml")
+    keyring::key_set_with_value(service = "Scrapert-RCAuthApiKey", password = req$args$RCAuthAPIKey)
     res$status <- 303 # temp redirect
     res$setHeader("Location", "/") #try again
-    return(NULL)
+    return(list())
   }
   # work around to get the data from the active link
   authkey <- rawToChar(req$body$authkey$value)

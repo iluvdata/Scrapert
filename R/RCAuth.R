@@ -26,10 +26,10 @@ RCAuth <- function(config) {
 #' for more information about the format of the REDCap active link).  Otherwise will return \code{list(err = "error message here")}
 #' @export
 doRCAuth <- function(req, res, config) {
-  if(!is.null(req$session$plumber$username)) {
+  if(!is.null(req$session$username)) {
     # Do we need to recheck our auth
-    if (req$session$plumber$expires < lubridate::now()) {
-      result <- RCAuthToken(req$session$plumber$token, config)
+    if (req$session$expires < lubridate::now()) {
+      result <- RCAuthToken(req$session$token, config)
       if (!is.null(result$username)) return(NULL)
       # is this an ajax request?
       if (is.character(req$HTTP_X_REQUESTED_WITH))
@@ -118,12 +118,11 @@ RCAuthProcess = function(req, res, config) {
   status <- RCAuthToken(authkey, config)
   config$config$RCAuthPID$value <- status$project_id
   config$saveToFile("config.yml")
-  if(is.null(req$session$plumber)) req$session$plumber <- list()
-  req$session$plumber$username = status$username
-  req$session$plumber$expires = lubridate::now() + lubridate::minutes(5)
-  req$session$plumbertoken <- authkey
+  req$session$username = status$username
+  req$session$expires = lubridate::now() + lubridate::minutes(5)
+  req$session$token <- authkey
   fullname <- RCsetUser(status$username, config, req)
-  if (!is.null(fullname)) req$session$plumber$fullame <- fullname
+  if (!is.null(fullname)) req$session$fullname <- fullname
   res$status <- 303
   res$setHeader("Location", "/")
 }

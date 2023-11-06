@@ -106,10 +106,10 @@ function (req, res) {
   }
 
   # Add in user data if exists
-  if(!is.null(req$session$plumber$username)) {
-    if(!is.null(req$session$plumber$fullname)) {
-      df$processed_by <- paste0(req$session$plumber$fullname, " (", req$session$plumber$username, ")")
-    } else df$processed_by <- req$session$plumber$username
+  if(!is.null(req$session$username)) {
+    if(!is.null(req$session$fullname)) {
+      df$processed_by <- paste0(req$session$fullname, " (", req$session$username, ")")
+    } else df$processed_by <- req$session$username
   } else {
     # local user
     df$processed_by <- paste0(Sys.info()["user"], " on ", Sys.info()["nodename"])
@@ -301,7 +301,7 @@ function() {
 function(setting, req) {
   config$saveWebConfig(setting)
   # Maybe we have enough information to get a result
-  if(!is.null(auth)) auth$setUser(req$session$plumber$username, config, req)
+  if(!is.null(auth)) auth$setUser(req$session$username, config, req)
   list()
 }
 
@@ -345,7 +345,7 @@ tofuns <- function() {
   }, 300)
 }
 sto <- tofuns()
-if(!interactive()) on.exit({ file.remove("plumber.lock") }, add = TRUE)
+
 on.exit({
   if (!is.null(sto)) {
     sto()
@@ -371,7 +371,7 @@ function(pr) {
     # New lock file
     write(Sys.getpid(), file = "plumber.lock")
     # Delete lock file on exist
-    if(!interactive()) on.exit({ file.remove("plumber.lock") }, add = TRUE)
+    on.exit({ file.remove("plumber.lock") }, add = TRUE)
   }
   # set session key if auth enabled, and add filter
   if (!is.null(auth)) {
@@ -386,7 +386,7 @@ function(pr) {
       pr_filter("auth", authFilter) 
     # add logout ep for testing
     if (interactive()) pr <- pr %>% pr_get("/test", function(action, req, res) {
-        if (action == "logout") req$session$plumber <- NULL
+        if (action == "logout") req$session <- list()
         else if (action == "deletedb") file.remove("xpertdb")
         res$status <- 307
         res$setHeader("Location", "/")

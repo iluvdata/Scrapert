@@ -22,6 +22,7 @@ launch <- function(wd = getwd()) {
     log <- file("scrapert.log", "wt")
     sink(log, append = TRUE, type = "output")
     sink(log, append = TRUE, type = "message")
+    on.exit({flush(log)})
   }
   if(!file.exists("config.yml")) {
     warning("No config found, using basic configuration")

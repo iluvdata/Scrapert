@@ -19,7 +19,7 @@ If the session is interactive (i.e. Rstudio) you will have to browse to http://l
 
 ## Launching
 
-This will copy a shell of a configuration file (\code{config.yml}) into the current working directory.  You can edit this file to adjust certain features of Scrapert (like port and timeout but most setting will be set by the app).   If you screw up and want to start over, just delete \code{config.yml} and relaunch.
+This will copy a shell of a configuration file (\code{config.yml}) into the current working directory.  You can edit this file to adjust certain features of Scrapert (like port and timeout but most settings will be set by the app).   If you screw up and want to start over, just delete \code{config.yml} and relaunch.
 
 ``` r
 library(Scrapert)

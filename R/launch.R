@@ -30,6 +30,5 @@ launch <- function(wd = getwd()) {
   # plumber uses the files directory as the working directory... annoying
   #file.copy(system.file("plumber.R", package="Scrapert"), ".plumber.R")
   message("Launching Scapert\n")
-  browser()
   PlumberWebSocket$new(system.file("plumber.R", package="Scrapert"))$run()
 }

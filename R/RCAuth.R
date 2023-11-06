@@ -31,9 +31,9 @@ doRCAuth <- function(req, res, config) {
     if (req$session$plumber$expires < lubridate::now()) {
       result <- RCAuthToken(req$session$plumber$token, config)
       if (!is.null(result$username)) return(NULL)
-      # 1. send a ws message to error out and redirect
-      # 2. ws will need to know it's client id --> session (DONE in the session cookie)
-      # 3. what if loading a url (pdf, cvs)?  we need to redirect below (do nothing here) (do this by PATH)
+      # is this an ajax request?
+      if (is.character(req$HTTP_X_REQUESTED_WITH))
+        if (tolower(req$HTTP_X_REQUESTED_WITH) == "xmlhttprequest") res$status <- 401L # not authenticated
     }
     else return(NULL)
   }
@@ -78,12 +78,14 @@ doRCAuth <- function(req, res, config) {
     config$config$RCAuthPID$value <- as.integer(httr::content(response))
     config$saveToFile("config.yml")
   }
+  url <- paste(stringr::str_extract(config$config$RCAuthApi$value, ".*(?=(/api/$))"),
+                paste0("redcap_v", v),
+                paste0("index.php?pid=", config$config$RCAuthPID$value),
+                sep = "/")
+  # if res$status == 401 then this is an ajax request
+  if (res$status == 401) return (list(url = url))
   res$status <- 307
-  res$setHeader("Location", paste(stringr::str_extract(config$config$RCAuthApi$value, ".*(?=(/api/$))"),
-                          paste0("redcap_v", v),
-                          paste0("index.php?pid=", config$config$RCAuthPID$value),
-                          sep = "/"))
-  return(list(redirect = TRUE))
+  res$setHeader("Location", url)
 }
 
 #' Process REDCap Responses
@@ -134,7 +136,9 @@ RCAuthToken <- function(token, config) {
   if (result$status == 200L) {
     # REDCap actually returns HTML so we have to specify type here
     status <- httr::content(result, type="application/json")
-    # TODO... what do we do when status is 0 or the server returns an error?
+  } else if (result$status == 403L) {
+    # return an empty list
+    return(list())
   } else {
     # this is a legit error
     rawtext <- httr::content(result)

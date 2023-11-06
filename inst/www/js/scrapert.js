@@ -46,7 +46,7 @@ function upload() {
     contentType: false,
   }).done(
     function(data) {
-      if(Object.keys(data.message).length > 0) showErr(data.message);
+      if(Object.keys(data.message).length > 0) showErr(data.message.msg, data.message.err);
       updateTable("resTbl", data.results);
       // Extract Search ID
       let sample_id = [];
@@ -76,9 +76,7 @@ function search(e){
         updateTable("resTbl", data);
       }
     )
-    .fail(function(jqXHR) {
-      showErr(jqXHR.responseJSON[0]);
-    });
+    .fail((jqXHR) => processErr(jqXHR));
   } else {
     $("#resTbl").addClass("d-none");
   }
@@ -100,9 +98,7 @@ function confDel(id) {
     $("#resTbl").addClass("d-none");
     $("#search").val("");
   })
-  .fail((jqXHR) => {
-    showErr(jqXHR.responseJSON);
-  })
+  .fail((jqXHR) => processErr(jqXHR));
   $("#myModal").modal("hide");
 }
 function updateTable(tbl, data) {
@@ -136,10 +132,20 @@ function updateTable(tbl, data) {
   $("#" + tbl).removeClass("d-none");
 }
 const dateFormat = new Intl.DateTimeFormat("en-US", { dateStyle: "short", timeStyle: "short" });
-function showErr(msg) {
+function processErr(jqXHR, modal) {
+  // did we get an ajax HTTP 401 response?
+  if(jqXHR.status == 401) {
+    showModal("Not Authenticated", "You must log in again to access this resource");
+    $("#myModal").on('hidden.bs.modal', e => { window.location = jqXHR.responseJSON.url });
+  }  else {
+    if (modal === undefined) showErr(jqXHR.responseJSON.msg, jqXHR.responseJSON.err);
+    else showModal(modal.title, modal.msg)
+  }
+}
+function showErr(msg, err) {
   let msgBox = $("#msgBox");
   msgBox.append(`<div class="alert alert-danger" id="msg" style="cursor: pointer"
-                    onclick='showModal("Error", "${msg.err.replaceAll("\"","\\\"").replaceAll("'","&apos;")}");'>${msg.msg}</div>`);
+                    onclick='showModal("Error", "${err.replaceAll("\"","\\\"").replaceAll("'","&apos;")}");'>${msg}</div>`);
   $("#msgRow").removeClass("d-none");
 }
 function clearErr() {
@@ -157,9 +163,7 @@ function lookupPID(sampleId, stackErr) {
     for(let d in data) {
       $(`#sid${data[d].sample_id}`).text(data[d].pid);
     }
-  }).fail(function(jqXHR) {
-    showErr({ msg : jqXHR.responseJSON.msg, err :  jqXHR.responseJSON.err });
-  });
+  }).fail((jqXHR) => processErr(jqXHR));
 }
 function uploadCRF(id, stackErr) {
   if (!stackErr) clearErr();
@@ -172,9 +176,7 @@ function uploadCRF(id, stackErr) {
     for(let x in data) {
       $(`#ul${data[x].id}`).text(dateFormat.format(new Date(data[x].uploaded + " UTC")));
     }
-  }).fail(function(jqXHR) {
-    showErr({ msg : jqXHR.responseJSON.msg, err :  jqXHR.responseJSON.err });
-  });
+  }).fail((jqXHR) => processErr(jqXHR));
 }
 function getSettings() {
   $.get("settings")
@@ -221,7 +223,7 @@ function getSettings() {
     } 
   })
   .fail((jqXHR, textStatus, errorThrow) => {
-    showModal("Unable to get settings", `${textStatus} ${errorThrow}`);
+    processErr(jqXHR, { title: "Unable to get settings", msg: `${textStatus} ${errorThrow}` });
   });
 }
 function saveSettings() {
@@ -240,7 +242,7 @@ function saveSettings() {
     getSettings();
   }).
   fail((jqXHR, textStatus, errorThrow) => {
-    showModal("Unable to save settings.",  `${textStatus} ${errorThrow}`);
+    processErr(jqXHR, { title: "Unable to save settings.", msg: `${textStatus} ${errorThrow}` });
   });
 }
 function showModal(title, body) {

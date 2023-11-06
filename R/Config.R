@@ -44,6 +44,7 @@ Config <- R6Class("Config",
       l <- lapply(self$config, function(x) { x$value })
       l$xpert <- lapply(self$xpert, function(x) { list(use = x$use, ct = x$ct) })
       l$modules <- self$modules
+      l$version <- as.character(packageVersion("Scrapert"))
       yaml::write_yaml(l, file)
     },
     #' @description

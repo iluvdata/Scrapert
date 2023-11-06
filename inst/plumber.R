@@ -100,6 +100,9 @@ function (req, res) {
     DBI::dbClearResult(rs)
     rs <- DBI::dbSendStatement(con, "CREATE UNIQUE INDEX samp_run ON xpert_results (sample_id, cartridge_sn)")
     DBI::dbClearResult(rs)
+    # add the version
+    version <- tibble(version = as.character(packageVersion("Scrapert")))
+    copy_to(con, version, temporary = FALSE)
   }
 
   # Add in user data if exists
@@ -107,6 +110,9 @@ function (req, res) {
     if(!is.null(req$session$plumber$fullname)) {
       df$processed_by <- paste0(req$session$plumber$fullname, " (", req$session$plumber$username, ")")
     } else df$processed_by <- req$session$plumber$username
+  } else {
+    # local user
+    df$processed_by <- paste0(Sys.info()["user"], " on ", Sys.info()["nodename"])
   }
 
   # Read in the pdfs using the tempfile paths and base64enc since sqlite doesn't do binary well.
@@ -316,7 +322,8 @@ authFilter <- function(req, res) {
   # are we trying to access the auth end point?
   if (!grepl(auth$filterex, req$PATH_INFO)) {
     result <- auth$auth(req, res, config)
-    if (!is.null(result$redirect)) return()
+    # Did auth tell us to go somewhere or directly return an error code?
+    if (res$status != 200) return(result)
     else if(!is.null(result$err)) {
       res$status <- 503
       res$body <- result$err
@@ -328,37 +335,23 @@ authFilter <- function(req, res) {
 
 # the following is for the websocket tracking
 clients <- list()
-
-addClient <- function(ws) {
-  clients[[ws$request$uuid]] <<- ws
-  clients
-}
-removeClient <- function(uuid) {
-  clients[[uuid]] <<- NULL
-}
+on.exit({ clients <- NULL }, add = TRUE)
 
 # Start a timer, basically if this isn't cancelled by a websocket connection withing 5 mins shut down (no zombie processes) 
 tofuns <- function() {
   later::later(function() {
     message("Scrapert is timing out")
-    exitPlumber()
+    if (!interactive()) quit("no")
   }, 300)
 }
 sto <- tofuns()
-
-exitPlumber <- function() {
-  # Delete the lock file
-  if(!interactive()) file.remove(system.file("plumber.lock"))
-  clients <<- NULL
-  # Cancel the timout
+if(!interactive()) on.exit({ file.remove("plumber.lock") }, add = TRUE)
+on.exit({
   if (!is.null(sto)) {
     sto()
-    sto <<- NULL
+    sto <- NULL
   }
-  message("Scrapert out!\n")
-  if (!interactive()) quit("no")
-  file.remove(".plumber.R")
-}
+}, add=TRUE)
 
 # Scrapert entry point
 #* @plumber
@@ -377,6 +370,8 @@ function(pr) {
     }
     # New lock file
     write(Sys.getpid(), file = "plumber.lock")
+    # Delete lock file on exist
+    if(!interactive()) on.exit({ file.remove("plumber.lock") }, add = TRUE)
   }
   # set session key if auth enabled, and add filter
   if (!is.null(auth)) {
@@ -397,7 +392,7 @@ function(pr) {
         res$setHeader("Location", "/")
       })
   }
-  # Add websocket support no monitor connections
+  # Add websocket support to monitor connections
   pr$websocket(
     function(ws) {
       ws$request$uuid <- uuid::UUIDgenerate()
@@ -406,15 +401,15 @@ function(pr) {
         sto()
         sto <<- NULL
       }
-      addClient(ws)
+      clients[[ws$request$uuid]] <<- ws
       ws$onMessage(function(binary, message){
         if (message == "shutdown") {
           cat ("Server shutdown requested\n")
-          exitPlumber()
+          if (!interactive()) quit("no")
         }
       })
       ws$onClose(function() {
-        removeClient(ws$request$uuid)
+        clients[[ws$request$uuid]] <<- NULL
         cat("Removed ", ws$request$uuid, " ", length(clients), " client(s) connected\n")
         # use a promise so this thread keeps running but only if all the clients are gone
         if (!is.null(clients) & length(clients) == 0) {
@@ -422,8 +417,8 @@ function(pr) {
           later::later(function(value) {
               # shut this down if not interactive and the client list is still empty in ~ 30s
               if (length(clients) == 0) {
-                cat("shutting down\n")
-                exitPlumber()
+                cat ("shutting down\n")
+                if(!interactive()) quit(save="no")
               } else cat("aborted shutdown ", length(clients), " client(s) is connected\n")
             }, 30)
         } # end if
@@ -433,7 +428,7 @@ function(pr) {
   pr %>% pr_static("/", system.file("/www/", package="Scrapert")) %>%
     pr_set_docs(TRUE) %>% pr_set_serializer(serializer_unboxed_json()) %>%
     pr_hook("exit", function() {
-      exitPlumber()
+      message("Scrapert out!")
     }) %>%
      pr_set_docs_callback(function(url) {
        # Hijack this function to open a browswer now the api is ready

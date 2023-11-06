@@ -34,7 +34,17 @@ RCAuth <- function(config) {
 #' @export
 doRCAuth <- function(req, res, config) {
   if(!is.null(req$session)) {
-    if(!is.null(req$session$plumber$username)) return(NULL)
+    if(!is.null(req$session$plumber$username)) {
+      # Do we need to recheck our auth
+      if (req$session$plumber$expires < lubridate::now()) {
+        result <- RCAuthToken(req$session$plumber$token, config)
+        if (!is.null(result$username)) return(NULL)
+        # 1. send a ws message to error out and redirect
+        # 2. ws will need to know it's client id --> session (DONE in the session cookie)
+        # 3. what if loading a url (pdf, cvs)?  we need to redirect below (do nothing here) (do this by PATH)
+      }
+      else return(NULL)
+    }
   }
   if (is.null(config$config$RCAuthApi$value)) {
     warning("RCAuthApi not set in config")
@@ -103,24 +113,34 @@ RCAuthProcess = function(req, res, config) {
   }
   # work around to get the data from the active link
   authkey <- rawToChar(req$body$authkey$value)
-  postData <- list(authkey = authkey,
+  status <- RCAuthToken(authkey, config)
+  config$config$RCAuthPID$value <- status$project_id
+  config$saveToFile("config.yml")
+  if(is.null(req$session$plumber)) req$session$plumber <- list()
+  req$session$plumber$username = status$username
+  req$session$plumber$expires = lubridate::now() + lubridate::minutes(5)
+  req$session$plumbertoken <- authkey
+  fullname <- RCsetUser(status$username, config, req)
+  if (!is.null(fullname)) req$session$plumber$fullame <- fullname
+  res$status <- 303
+  res$setHeader("Location", "/")
+}
+
+RCAuthToken <- function(token, config) {
+  postData <- list(authkey = token,
                    format = "json")
   result <- httr::POST(config$config$RCAuthApi$value, body = postData, encode = "form")
-  status <- list()
+  status <- NULL
   if (result$status == 200L) {
     # REDCap actually returns HTML so we have to specify type here
     status <- httr::content(result, type="application/json")
+    # TODO... what do we do when status is 0 or the server returns an error?
   } else {
+    # this is a legit error
     rawtext <- httr::content(result)
-    res$status <- 401
-    res$setHeader("Content-Type", "text/plain")
-    return(sprintf("There was an error verifying authkey. Status %i. Message: %s", req$status, rawtext))
+    stop(sprintf("There was an error verifying authkey. Status %i. Message: %s", result$status, rawtext))
   }
-  config$config$RCAuthPID$value <- status$project_id
-  config$saveToFile("config.yml")
-  RCsetUser(status$username, config, req)
-  res$status <- 303
-  res$setHeader("Location", "/")
+  list(project_id = status$project_id, username = status$username)
 }
 
 #' REDCap Util:  set user
@@ -133,24 +153,23 @@ RCAuthProcess = function(req, res, config) {
 #' @param uname REDCap username
 #' @param config \link{Config} object
 #' @param req Plumber \code{req} object
+#' @return \code{fullname} if success, \code{NULL} otherwise
 RCsetUser <- function(uname, config, req) {
   key <- tryCatch({
     keyring::key_get("Scrapert-RCAuthApiKey")
   }, error = function (e) {
     return(NULL)
   })
-  fullname <- if (!is.null(key)) {
+  if (!is.null(key)) {
     # We are authenticated and can access the API so try and get the user
     response <- httr::POST(config$config$RCAuthApi$value,  
                            body = list (token = key, content = "user",  format = "csv",  returnFormat = "json"), 
                            encode = "form")
     if (response$status_code != 200) warning(paste("Unable to get user full name", httr::content(response)))
-    fullname <- httr::content(response, show_col_types = FALSE) %>% filter(username == uname) %>% 
+    httr::content(response, show_col_types = FALSE) %>% filter(username == uname) %>% 
       mutate(fullname = paste(firstname, lastname)) %>% pull(fullname)
   } else {
     warning("Unable to get user full name as REDCap Auth API key was not set")
     NULL
   } 
-  req$session$plumber <- if (!is.null(fullname)) list(username = uname, fullname = fullname)
-    else list(username = uname)
 }

@@ -326,10 +326,6 @@ authFilter <- function(req, res) {
   forward()
 }
 
-# # static files
-# #* @assets ./www/ /
-# list()
-
 # the following is for the websocket tracking
 clients <- list()
 

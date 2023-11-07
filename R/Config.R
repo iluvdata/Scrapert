@@ -77,7 +77,7 @@ Config <- R6Class("Config",
         #' get nested lists for json serialization
         #' @return nested lists of items
     getWebConfig = function() {
-      l <- purrr::keep(self$config, function(x) { !is.null(x$label) }) %>%
+      l <- purrr::keep(self$config, function(x) { is.character(x$label) }) %>%
         purrr::map(function(x) { 
           if(!is.null(x$opts)) x <- purrr::list_modify(x, opts = x$opts[[1]]())
           if(is.null(x$value)) x$value = NULL
@@ -97,12 +97,12 @@ Config <- R6Class("Config",
     #' @param setting list of settings posted via ajax
     saveWebConfig = function(setting) {
       # let's save the passwords first
-      purrr::iwalk(purrr::keep(self$config, \(x) if (!is.null(x$type)) return(x$type == "password") else FALSE),
+      purrr::iwalk(purrr::keep(self$config, \(x) if (is.character(x$type)) return(x$type == "password") else FALSE),
                    function(x, idx) {
                      if(setting[[idx]] != "") keyring::key_set_with_value(service = paste0("Scrapert-", idx), password = setting[[idx]])
                    })
       # Now the config
-      purrr::iwalk(purrr::keep(self$config, \(x) if (!is.null(x$type)) return(x$type != "password") else TRUE),
+      purrr::iwalk(purrr::keep(self$config, \(x) if (is.character(x$type)) return(x$type != "password") else TRUE),
                    function(x, idx) {
                      if(!is.null(setting[[idx]])) self$config[[idx]]$value = setting[[idx]]
                    })

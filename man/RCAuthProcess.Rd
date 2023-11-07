@@ -15,7 +15,7 @@ RCAuthProcess(req, res, config)
 }
 \value{
 \code{list(username = username)} if successful otherwise \code{list(err = "error message")} and/or sending
-\code{res$status <- 401} (not authenticated)
+\code{res$status <- 401} (not authenticated). Will redirect if RCAuthAPI is posted as an arg after saving the config
 }
 \description{
 Process the REDCap active link.

@@ -38,7 +38,7 @@ doRCAuth <- function(req, res, config) {
     else return(NULL)
   }
   if (is.null(config$config$RCAuthApi$value)) {
-    warning("RCAuthApi not set in config")
+    logger::log_warn("RCAuthApi not set in config")
     res$status <- 307
     res$setHeader("Location", "RCConfig.html")
     return (list(redirect = TRUE))
@@ -49,7 +49,7 @@ doRCAuth <- function(req, res, config) {
     return(NULL)
   })
   if (is.null(key)) {
-    warning("RCAuthApiKey not set in keyring")
+    logger::log_warn("RCAuthApiKey not set in keyring")
     res$status <- 307
     res$setHeader("Location", "RCConfig.html")
     return (list(redirect = TRUE))
@@ -119,7 +119,7 @@ RCAuthProcess = function(req, res, config) {
   config$config$RCAuthPID$value <- status$project_id
   config$saveToFile("config.yml")
   req$session$username = status$username
-  req$session$expires = lubridate::now() + lubridate::minutes(5)
+  req$session$expires = lubridate::now() + lubridate::minutes(2)
   req$session$token <- authkey
   fullname <- RCsetUser(status$username, config, req)
   if (!is.null(fullname)) req$session$fullname <- fullname
@@ -127,6 +127,12 @@ RCAuthProcess = function(req, res, config) {
   res$setHeader("Location", "/")
 }
 
+#' REDCap Token Authentication
+#'
+#' @param token the REDCap Active link token
+#' @param config \link{Config} object
+#'
+#' @return \code{list()} which if empty means we failed.  Otherwise returns the redcap username, project_id, etc.
 RCAuthToken <- function(token, config) {
   postData <- list(authkey = token,
                    format = "json")
@@ -135,8 +141,10 @@ RCAuthToken <- function(token, config) {
   if (result$status == 200L) {
     # REDCap actually returns HTML so we have to specify type here
     status <- httr::content(result, type="application/json")
+    # The following means we had an auth code but now the session is redcap is over (it returned a 0)
+    if (!is.list(status)) return(list())  
   } else if (result$status == 403L) {
-    # return an empty list
+    # return an empty list if the auth code isn't valid.
     return(list())
   } else {
     # this is a legit error
@@ -168,11 +176,11 @@ RCsetUser <- function(uname, config, req) {
     response <- httr::POST(config$config$RCAuthApi$value,  
                            body = list (token = key, content = "user",  format = "csv",  returnFormat = "json"), 
                            encode = "form")
-    if (response$status_code != 200) warning(paste("Unable to get user full name", httr::content(response)))
+    if (response$status_code != 200) logger::log_warn(paste("Unable to get user full name", httr::content(response)))
     httr::content(response, show_col_types = FALSE) %>% filter(username == uname) %>% 
       mutate(fullname = paste(firstname, lastname)) %>% pull(fullname)
   } else {
-    warning("Unable to get user full name as REDCap Auth API key was not set")
+    logger::log_warn("Unable to get user full name as REDCap Auth API key was not set")
     NULL
   } 
 }

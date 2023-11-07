@@ -132,8 +132,8 @@ RCCRFgetKey <- function (config) {
   }, error = function(e) {
     return(NULL)
   })
-  if (is.null(key)) stop("REDCap CRF API Key is not set")
-  if (is.null(config$config$RCCRFApi$value)) stop("REDCap CRF Api URL is not set")
+  if (!is.character(key)) stop("REDCap CRF API Key is not set")
+  if (!is.character(config$config$RCCRFApi$value)) stop("REDCap CRF Api URL is not set")
   key
 }
 

@@ -138,11 +138,12 @@ function processErr(jqXHR, modal) {
     showModal("Not Authenticated", "You must log in again to access this resource");
     $("#myModal").on('hidden.bs.modal', e => { window.location = jqXHR.responseJSON.url });
   }  else {
-    if (modal === undefined) showErr(jqXHR.responseJSON.msg, jqXHR.responseJSON.err);
+    if (modal === undefined) showErr(jqXHR.responseJSON[0].msg, jqXHR.responseJSON[0].err);
     else showModal(modal.title, modal.msg)
   }
 }
 function showErr(msg, err) {
+  console.log(msg + ":" + err);
   let msgBox = $("#msgBox");
   msgBox.append(`<div class="alert alert-danger" id="msg" style="cursor: pointer"
                     onclick='showModal("Error", "${err.replaceAll("\"","\\\"").replaceAll("'","&apos;")}");'>${msg}</div>`);

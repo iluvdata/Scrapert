@@ -8,16 +8,16 @@ library(tidyr)
 config <- Config$new("config.yml")
   # change permissions
 if (as.integer(file.info("config.yml")$mode & as.octmode("177"))) {
-  message(sprintf("config.yml permissions were %o, changing to 600", file.info("config.yml")$mod))
+  logger::log_info(sprintf("config.yml permissions were %o, changing to 600", file.info("config.yml")$mod))
   Sys.chmod("config.yml", mode = "0600")
 }
 
 config$addConfig(
     xpertTZ = list(label = "Time Zone of Xpert Machine", opts = OlsonNames, required = TRUE)
 )
-auth <- if (!is.null(config$modules$auth))  do.call(config$modules$auth, list(config = config))
-pid <- if (!is.null(config$modules$pid)) do.call(config$modules$pid, list(config = config))
-crf <- if (!is.null(config$modules$crf)) do.call(config$modules$crf, list(config = config))
+auth <- if (is.character(config$modules$auth))  do.call(config$modules$auth, list(config = config))
+pid <- if (is.character(config$modules$pid)) do.call(config$modules$pid, list(config = config))
+crf <- if (is.character(config$modules$crf)) do.call(config$modules$crf, list(config = config))
 # 
 # Process pdf upload
 #* @post /upload
@@ -106,8 +106,8 @@ function (req, res) {
   }
 
   # Add in user data if exists
-  if(!is.null(req$session$username)) {
-    if(!is.null(req$session$fullname)) {
+  if(is.character(req$session$username)) {
+    if(is.character(req$session$fullname)) {
       df$processed_by <- paste0(req$session$fullname, " (", req$session$username, ")")
     } else df$processed_by <- req$session$username
   } else {
@@ -259,8 +259,7 @@ function(id, res) {
     res$headers <- list(contentType = "text/plain")
     res$body <- paste0("Database empty. Hit back to upload results. Error: ", e$message)
   })
-  if (is.null(csv)) return(res)
-  as_attachment(csv, filename = "xpertresults.csv")
+  if(is.data.frame(csv)) as_attachment(csv, filename = "xpertresults.csv")
 }
 
 #* Search by Sample ID or PID
@@ -301,7 +300,7 @@ function() {
 function(setting, req) {
   config$saveWebConfig(setting)
   # Maybe we have enough information to get a result
-  if(!is.null(auth)) auth$setUser(req$session$username, config, req)
+  if(is.list(auth)) auth$setUser(req$session$username, config, req)
   list()
 }
 
@@ -315,43 +314,40 @@ function(req, res) {
 # This will only be called if the auth function exists (is linked by source).  See README
 authFilter <- function(req, res) {
   # reset the timeout if we haven't connected a websocket (in which case sto is NULL)
-  if(!is.null(sto)) {
+  if(is.function(sto)) {
     sto()
     sto <<- tofuns()
   }
   # are we trying to access the auth end point?
   if (!grepl(auth$filterex, req$PATH_INFO)) {
-    result <- auth$auth(req, res, config)
+    auth$auth(req, res, config)
     # Did auth tell us to go somewhere or directly return an error code?
-    if (res$status != 200) return(result)
-    else if(!is.null(result$err)) {
-      res$status <- 503
-      res$body <- result$err
-      return (res)
-    }
+    if (res$status != 200) return()
   }
   forward()
 }
 
 # the following is for the websocket tracking
 clients <- list()
-on.exit({ clients <- NULL }, add = TRUE)
 
 # Start a timer, basically if this isn't cancelled by a websocket connection withing 5 mins shut down (no zombie processes) 
 tofuns <- function() {
   later::later(function() {
-    message("Scrapert is timing out")
-    if (!interactive()) quit("no")
+    logger::log_info("Scrapert is timing out")
+    if (!interactive()) exitPlumber()
   }, 300)
 }
 sto <- tofuns()
 
-on.exit({
-  if (!is.null(sto)) {
-    sto()
-    sto <- NULL
+exitPlumber <- function() {
+  if (is.function(sto)) sto()
+  clients <- NULL
+  logger::log_info("Scrapert out!")
+  if(!interactive()) {
+    file.remove("plumber.lock")
+    q("no")
   }
-}, add=TRUE)
+}
 
 # Scrapert entry point
 #* @plumber
@@ -365,16 +361,14 @@ function(pr) {
     if (file.exists("plumber.lock")) {
       pid <- readLines("plumber.lock")
       # kill the old process
-      cat("Scrapert already running, attempting to stop prior process: \n")
+      logger::log_info("Scrapert already running, attempting to stop prior process: \n")
       system(paste("kill -3", pid))
     }
     # New lock file
     write(Sys.getpid(), file = "plumber.lock")
-    # Delete lock file on exist
-    on.exit({ file.remove("plumber.lock") }, add = TRUE)
   }
   # set session key if auth enabled, and add filter
-  if (!is.null(auth)) {
+  if (is.list(auth)) {
     key <-
       tryCatch({
         keyring::key_get("plumber_api")
@@ -397,39 +391,37 @@ function(pr) {
     function(ws) {
       ws$request$uuid <- uuid::UUIDgenerate()
       # Cancel the timeout
-      if (!is.null(sto)) {
+      if (is.function(sto)) {
         sto()
         sto <<- NULL
       }
       clients[[ws$request$uuid]] <<- ws
       ws$onMessage(function(binary, message){
         if (message == "shutdown") {
-          cat ("Server shutdown requested\n")
-          if (!interactive()) quit("no")
+          logger::log_info ("Server shutdown requested\n")
+          if (!interactive()) exitPlumber()
         }
       })
       ws$onClose(function() {
         clients[[ws$request$uuid]] <<- NULL
-        cat("Removed ", ws$request$uuid, " ", length(clients), " client(s) connected\n")
+        logger::log_info("Removed ", ws$request$uuid, " ", length(clients), " client(s) connected\n")
         # use a promise so this thread keeps running but only if all the clients are gone
-        if (!is.null(clients) & length(clients) == 0) {
-          cat("starting shutdown timeout\n")
+        if (is.list(clients) & length(clients) == 0) {
+          logger::log_info("starting shutdown timeout\n")
           later::later(function(value) {
               # shut this down if not interactive and the client list is still empty in ~ 30s
               if (length(clients) == 0) {
-                cat ("shutting down\n")
-                if(!interactive()) quit(save="no")
-              } else cat("aborted shutdown ", length(clients), " client(s) is connected\n")
+                logger::log_info ("shutting down\n")
+                if(!interactive()) exitPlumber()
+              } else logger::log_info("aborted shutdown ", length(clients), " client(s) is connected\n")
             }, 30)
         } # end if
       })
     }
   )
   pr %>% pr_static("/", system.file("/www/", package="Scrapert")) %>%
-    pr_set_docs(TRUE) %>% pr_set_serializer(serializer_unboxed_json()) %>%
-    pr_hook("exit", function() {
-      message("Scrapert out!")
-    }) %>%
+    pr_set_docs(TRUE) %>% pr_set_serializer(serializer_unboxed_json())  %>%
+    pr_hook("exit", exitPlumber) %>%
      pr_set_docs_callback(function(url) {
        # Hijack this function to open a browswer now the api is ready
        if(!interactive())  browseURL(paste0("http://localhost:", config$config$server_port$value))

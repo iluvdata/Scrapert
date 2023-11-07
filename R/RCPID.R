@@ -27,7 +27,7 @@ getPID <- function(sampleid, config) {
     }, error = function(e) {
       return(NULL)
     })
-  if (is.null(key)) stop("REDCap PID API Key is not set")
+  if (!is.character(key)) stop("REDCap PID API Key is not set")
   data <- list(
     token = key,
     content = "record",

@@ -13,6 +13,9 @@ RCsetUser(uname, config, req)
 
 \item{req}{Plumber \code{req} object}
 }
+\value{
+\code{fullname} if success, \code{NULL} otherwise
+}
 \description{
 If able to get full name from REDCap will set session cookie along with username, 
 othersiwse just sets the username.

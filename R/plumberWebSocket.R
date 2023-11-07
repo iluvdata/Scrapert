@@ -19,7 +19,8 @@ PlumberWebSocket <- R6Class("PlumberWebSocket",
     initialize = function(f, wd = getwd()) {
       file.copy(f, paste0(wd, "/.plumber.R"))
       super$initialize(".plumber.R")
-      on.exit({file.remove(".plumber.R")}, add = TRUE)
+      pfile <- ".plumber.R"
+      on.exit({file.remove(pfile)}, add = TRUE)
     },
     #' @description
     #' event fired when websocket is opened

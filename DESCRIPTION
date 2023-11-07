@@ -9,7 +9,7 @@ Maintainer: Grant Ellsworth <gre9006@med.cornell.edu>
 RoxygenNote: 7.2.3
 License: GPL-3
 Depends: plumber, R (>= 2.10)
-Imports: DBI, R6, later, pdftools, stringr, tidyverse, uuid, yaml, websocket, RSQLite, base64enc, httr, keyring, lubridate, readr
+Imports: DBI, R6, later, pdftools, stringr, tidyverse, uuid, yaml, websocket, RSQLite, base64enc, httr, keyring, lubridate, readr, logger
 LazyData: true
 URL: https://github.com/iluvdata/Scrapert
 BugReports: https://github.com/iluvdata/Scrapert/issues

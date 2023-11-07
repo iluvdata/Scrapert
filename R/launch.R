@@ -15,21 +15,20 @@
 #' # Scrapert::launch("/path/to/working_dir")
 #' 
 launch <- function(wd = getwd()) {
-  message("Using working directory ", wd)
   setwd(wd)
+  logger::log_layout(logger::layout_glue_colors)
+  logger::log_messages()
   if(!interactive()) {
     file.remove("scrapert.log")
-    log <- file("scrapert.log", "wt")
-    sink(log, append = TRUE, type = "output")
-    sink(log, append = TRUE, type = "message")
-    on.exit({flush(log)})
+    logger::log_appender(logger::appender_file("scrapert.log"))
   }
+  logger::log_info("Using working directory ", wd)
   if(!file.exists("config.yml")) {
-    warning("No config found, using basic configuration")
+    logger::log_warn("No config found, using basic configuration")
     file.copy(system.file("config.sample.yml", package="Scrapert"), "config.yml")
   }
   # plumber uses the files directory as the working directory... annoying
   #file.copy(system.file("plumber.R", package="Scrapert"), ".plumber.R")
-  message("Launching Scapert\n")
+  logger::log_info("Launching Scapert\n")
   PlumberWebSocket$new(system.file("plumber.R", package="Scrapert"))$run()
 }

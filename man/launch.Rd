@@ -4,10 +4,12 @@
 \alias{launch}
 \title{Launch Scrapert}
 \usage{
-launch(wd = getwd())
+launch(wd = getwd(), server = FALSE)
 }
 \arguments{
 \item{wd}{a working directory or not supplied to use the current working directory}
+
+\item{server}{launch in server (daemon mode) `TRUE/FALSE`}
 }
 \value{
 0 (zero) if successful

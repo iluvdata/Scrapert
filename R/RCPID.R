@@ -6,10 +6,6 @@
 #' @return a list of functions for plumber to reference
 #' @export
 RCPID <- function(config) {
-  config$addConfig(
-    RCPIDApi = list(label = "REDCap PID Project API URL", type="url", required=TRUE),
-    RCPIDApiKey = list(label = "REDCap PID Project API Key", type="password")
-  )
   return(list(getPID = getPID))
 }
 
@@ -37,7 +33,7 @@ getPID <- function(sampleid, config) {
     returnFormat = "json",
     filterLogic = paste(paste0("[sample_id]='", sampleid, "'"), collapse = " OR ")
   )
-  response <- httr::POST(config$config$RCPIDApi$value, body = data, encode = "form")
+  response <- httr::POST(config$config$api, body = data, encode = "form")
   if (response$status_code != 200) stop(paste("REDCap Error", response$status_code, httr::content(response)))
   piddb <- httr::content(response, show_col_types = FALSE, col_types = "cc")
   pids <- tibble(sample_id = sampleid)

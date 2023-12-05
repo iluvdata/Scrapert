@@ -6,11 +6,6 @@
 #' @return a list of functions for plumber to reference
 #' @export
 RCAuth <- function(config) {
-  config$addConfig(
-    RCAuthApi = list(label = "REDCap Auth API URL", type="url", required=TRUE),
-    RCAuthPID = list(),
-    RCAuthApiKey = list(label = "REDCap Auth Project API Key", type="password")
-  )
   return(list(auth = doRCAuth, checkAuth = RCAuthProcess, setUser = RCsetUser, filterex = "(^/authep)|(^/RCConfig.html)|(^/css.*)|(^/js)"))
 }
 
@@ -26,36 +21,41 @@ RCAuth <- function(config) {
 #' for more information about the format of the REDCap active link).  Otherwise will return \code{list(err = "error message here")}
 #' @export
 doRCAuth <- function(req, res, config) {
+  if (is.null(config$config$api)) {
+    logger::log_warn("api not set in config")
+    res$status <- 307
+    res$setHeader("Location", "RCConfig.html")
+    return (list(redirect = TRUE))
+  }
   if(!is.null(req$session$username)) {
     # Do we need to recheck our auth
     if (req$session$expires < lubridate::now()) {
       result <- RCAuthToken(req$session$token, config)
-      if (!is.null(result$username)) return(NULL)
+      if (is.character(result$username)) {
+        logger::log_warn("RC time out.  RC username { result$username }")
+        # Check again in 2 mins
+        req$session$expires <- lubridate::now() + lubridate::minutes(2)
+        return(NULL)
+      } else logger::log_warn("RC time out.")
       # is this an ajax request?
       if (is.character(req$HTTP_X_REQUESTED_WITH))
         if (tolower(req$HTTP_X_REQUESTED_WITH) == "xmlhttprequest") res$status <- 401L # not authenticated
     }
     else return(NULL)
   }
-  if (is.null(config$config$RCAuthApi$value)) {
-    logger::log_warn("RCAuthApi not set in config")
-    res$status <- 307
-    res$setHeader("Location", "RCConfig.html")
-    return (list(redirect = TRUE))
-  }
   key <- tryCatch({
-    keyring::key_get("Scrapert-RCAuthApiKey")
+    keyring::key_get("Scrapert-apikey")
   }, error = function (e) {
     return(NULL)
   })
   if (is.null(key)) {
-    logger::log_warn("RCAuthApiKey not set in keyring")
+    logger::log_warn("apikey not set in keyring")
     res$status <- 307
     res$setHeader("Location", "RCConfig.html")
     return (list(redirect = TRUE))
   }
   # Build the correct url based on version
-  response <- httr::POST(config$config$RCAuthApi$value,
+  response <- httr::POST(config$config$api,
                          body = list(
                            token = key,
                            content = "version",
@@ -64,8 +64,8 @@ doRCAuth <- function(req, res, config) {
   if (response$status_code != 200) stop(paste("Unable to get REDCap project url",
                                               httr::content(response)))
   v <- httr::content(response, as="text")
-  if(is.null(config$config$RCAuthPID$value)) {
-    response <- httr::POST(config$config$RCAuthApi$value,
+  if(is.null(config$config$project_id)) {
+    response <- httr::POST(config$config$api,
                            body = list(
                              token = key,
                              content = "project",
@@ -75,12 +75,12 @@ doRCAuth <- function(req, res, config) {
     if (response$status_code != 200) stop(paste("Unable to get REDCap project url",
                                                 httr::content(response)))
     pid <- httr::content(response)$project_id
-    config$config$RCAuthPID$value <- as.integer(httr::content(response))
+    config$config$project_id <- as.integer(pid)
     config$saveToFile("config.yml")
   }
-  url <- paste(stringr::str_extract(config$config$RCAuthApi$value, ".*(?=(/api/$))"),
+  url <- paste(stringr::str_extract(config$config$api, ".*(?=(/api/$))"),
                 paste0("redcap_v", v),
-                paste0("index.php?pid=", config$config$RCAuthPID$value),
+                paste0("index.php?pid=", config$config$project_id),
                 sep = "/")
   # if res$status == 401 then this is an ajax request
   if (res$status == 401) return (list(url = url))
@@ -105,10 +105,10 @@ doRCAuth <- function(req, res, config) {
 #' @export
 RCAuthProcess = function(req, res, config) {
   # Are we trying to set the REDCap API URL and key?
-  if (!is.null(req$args$RCAuthAPI)) {
-    config$config$RCAuthApi$value <- req$args$RCAuthAPI
+  if (!is.null(req$args$api)) {
+    config$config$api <- req$args$api
     config$saveToFile("config.yml")
-    keyring::key_set_with_value(service = "Scrapert-RCAuthApiKey", password = req$args$RCAuthAPIKey)
+    keyring::key_set_with_value(service = "Scrapert-apikey", password = req$args$apikey)
     res$status <- 303 # temp redirect
     res$setHeader("Location", "/") #try again
     return(list())
@@ -116,7 +116,7 @@ RCAuthProcess = function(req, res, config) {
   # work around to get the data from the active link
   authkey <- rawToChar(req$body$authkey$value)
   status <- RCAuthToken(authkey, config)
-  config$config$RCAuthPID$value <- status$project_id
+  config$config$project_id <- status$project_id
   config$saveToFile("config.yml")
   req$session$username = status$username
   req$session$expires = lubridate::now() + lubridate::minutes(2)
@@ -136,7 +136,7 @@ RCAuthProcess = function(req, res, config) {
 RCAuthToken <- function(token, config) {
   postData <- list(authkey = token,
                    format = "json")
-  result <- httr::POST(config$config$RCAuthApi$value, body = postData, encode = "form")
+  result <- httr::POST(config$config$api, body = postData, encode = "form")
   status <- NULL
   if (result$status == 200L) {
     # REDCap actually returns HTML so we have to specify type here
@@ -167,13 +167,13 @@ RCAuthToken <- function(token, config) {
 #' @return \code{fullname} if success, \code{NULL} otherwise
 RCsetUser <- function(uname, config, req) {
   key <- tryCatch({
-    keyring::key_get("Scrapert-RCAuthApiKey")
+    keyring::key_get("Scrapert-apikey")
   }, error = function (e) {
     return(NULL)
   })
   if (!is.null(key)) {
     # We are authenticated and can access the API so try and get the user
-    response <- httr::POST(config$config$RCAuthApi$value,  
+    response <- httr::POST(config$config$api,  
                            body = list (token = key, content = "user",  format = "csv",  returnFormat = "json"), 
                            encode = "form")
     if (response$status_code != 200) logger::log_warn(paste("Unable to get user full name", httr::content(response)))

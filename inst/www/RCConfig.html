@@ -3,25 +3,25 @@
   <title>Xpert HPV Configuration</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="css/bootstrap.min.css" rel="stylesheet" 
-    integrity="sha384-KK94CHFLLe+nY2dmCWGMq91rCGa5gtU4mk92HdvYe+M/SXH301p5ILy+dN9+nJOZ" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" 
+    integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
 </head>
 <body>
   <div id="main-container" class="container-sm">
     <div class="row">
-      <div class="col-md-12 mt-3"><h3>REDCap Authenitication API Setup</h3></div>
+      <div class="col-md-12 mt-3"><h3>REDCap API Setup</h3></div>
     </div>
     <form action="authep" method="post">
     <div class="row">
       <div class="col-md-12 mt-3">
-        <label for="RCAuthAPI" class="form-label fw-bold">REDCap Authentication Project API URL</label>
-        <input type="url" class="form-control" name="RCAuthAPI" placeholder="https://..." required>
+        <label for="api" class="form-label fw-bold">REDCap Project API URL</label>
+        <input type="url" class="form-control" name="api" id="api" placeholder="https://..." required>
       </div>
     </div>
         <div class="row">
       <div class="col-md-12 mt-3">
-        <label for="RCAuthAPIKey" class="form-label fw-bold">REDCap Authentication Project API Token/Key</label>
-        <input type="password" class="form-control" name="RCAuthAPIKey" required>
+        <label for="apikey" class="form-label fw-bold">REDCap Project API Token/Key</label>
+        <input type="password" class="form-control" id="apikey" name="apikey" required>
       </div>
     </div>
     <div class="row">

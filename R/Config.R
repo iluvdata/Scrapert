@@ -12,13 +12,10 @@ Config <- R6Class("Config",
     #' # config <- Config$new("config.yml")
     initialize = function(file) {
       self$loadFromFile(file)
-      self$xpert <- purrr::list_merge(self$xpert,
-        '16' = list(label = "HPV 16"), '18_45' = list(label = "HPV 18/45"),
-        P3 = list(label = "P3"), P4 = list(label = "P4"), P5 = list(label = "P5"))
     },
-    #' @field config \code{list} holding the configuration.  Access with \code{config$config$xpertTZ$value}
+    #' @field config \code{list} holding the configuration.  Access with \code{config$config$xpertTZ}
     config = list(),
-    #' @field xpert \code{list} holding the xpert interpretation values.  Access with \code{config$xpert["16"]$label}
+    #' @field xpert \code{list} holding the xpert interpretation values.  Access with \code{config$xpert["16"]}
     xpert = list(),
     #' @field modules \code{list} holding R6 module class (Auth, PID, CRF).  Access with \code{config$modules$Auth$checkAuth(res,req)}
     modules = list(),
@@ -33,7 +30,7 @@ Config <- R6Class("Config",
       self$xpert <- purrr::list_modify(self$xpert, !!!conf$xpert)
       conf$modules <- NULL
       conf$xpert <- NULL
-      self$config <- purrr::list_modify(self$config, !!!purrr::map(conf, \(x) list(value = x)))
+      self$config <- conf
     },
     #' @description
     #' Save current configuration to yaml file
@@ -41,8 +38,9 @@ Config <- R6Class("Config",
     #' @examples
     #' # config$saveToFile("config.yml")
     saveToFile = function(file) {
-      l <- lapply(self$config, function(x) { x$value })
-      l$xpert <- lapply(self$xpert, function(x) { list(use = x$use, ct = x$ct) })
+      l <- self$config
+      l$config$debug <- NULL
+      l$xpert <- self$xpert
       l$modules <- self$modules
       l$version <- as.character(packageVersion("Scrapert"))
       yaml::write_yaml(l, file)
@@ -51,12 +49,22 @@ Config <- R6Class("Config",
     #' Get nested list of values. Replaces  opts functions with strings and module classes with names of the class
     #' @return list() with xpert and module lists as top level items
     getNestedList = function() {
-      l <- purrr::map(self$config, function(x) {
-        if(!is.null(x$opts)) x$opts <- paste(c(head(x$opts[[1]](), 4), "etc."), collapse=", ")
-        x
-      })
+      l <- self$config
       l$xpert <- self$xpert
       l$modules <- self$modules
+      l
+    },
+    #' @description
+    #' Get nested list of values. Replaces  opts functions with strings and module classes with names of the class
+    #' strips modules
+    #' @return list() with xpert and module lists as top level items
+    getWebConfig = function() {
+      l <- self$getNestedList();
+      l$RC <-  list(api = l$api, apikey = ifelse(
+        tryCatch({ keyring::key_get("Scrapert-apikey") ; TRUE}, error = function (e) { return(FALSE)}),
+        "set", NULL))
+      l$api <- NULL
+      l$modules <-NULL
       l
     },
     #' @description
@@ -73,61 +81,29 @@ Config <- R6Class("Config",
     print = function() {
       cat(self$yaml())
     },
-    #' @description
-        #' get nested lists for json serialization
-        #' @return nested lists of items
-    getWebConfig = function() {
-      l <- purrr::keep(self$config, function(x) { is.character(x$label) }) %>%
-        purrr::map(function(x) { 
-          if(!is.null(x$opts)) x <- purrr::list_modify(x, opts = x$opts[[1]]())
-          if(is.null(x$value)) x$value = NULL
-          x
-        })
-      l$xpert = self$xpert
-      l
-    },
-    #' @description
-        #' a setting is needed
-        #' @return \code{TRUE} if a setting is needed
-    configNeeded = function() {
-      purrr::some(self$config, \(x) !is.null(x$needed))
-    },
     #' @description 
     #' Save the web configure (form data)
     #' @param setting list of settings posted via ajax
     saveWebConfig = function(setting) {
       # let's save the passwords first
-      purrr::iwalk(purrr::keep(self$config, \(x) if (is.character(x$type)) return(x$type == "password") else FALSE),
-                   function(x, idx) {
-                     if(setting[[idx]] != "") keyring::key_set_with_value(service = paste0("Scrapert-", idx), password = setting[[idx]])
-                   })
-      # Now the config
-      purrr::iwalk(purrr::keep(self$config, \(x) if (is.character(x$type)) return(x$type != "password") else TRUE),
-                   function(x, idx) {
-                     if(!is.null(setting[[idx]])) self$config[[idx]]$value = setting[[idx]]
-                   })
-      # We should have needed values by now
-      self$config <- purrr::modify_if(self$config, \(x) !is.null(x$needed), function(x) {
-          x$needed <- NULL
-          x
+      if(is.character(setting$apikey)) {
+         if(setting$apikey != "set") keyring::key_set_with_value(service = "Scrapert-apikey", password = setting$apikey)
+      }
+      self$config$api = setting$api
+      setting$server <- NULL
+      setting$debug <- NULL
+      
+      # Now the settings
+      purrr::keep_at(setting, ~ !(.x %in% c("xpert", "RC"))) %>% 
+        purrr::iwalk(\(x,idx) {
+          self$config[[idx]] <- x
         })
       # Now xpert
-      purrr::iwalk(self$xpert, function(x, idx) {
-        ct <- setting[[paste0("ct", idx)]]
-        self$xpert[[idx]]$use <- !is.null(setting[[paste0("use", idx)]])
-        self$xpert[[idx]]$ct <- ifelse(ct == "", "", as.integer(ct))
+      self$xpert <- lapply(setting$xpert, \(x) {
+        x$ct = as.integer(x$ct)
+        x
       })
-      self$saveToFile("config.yml")
-    },
-    #' @description
-        #' Add a configuration item to the stack or add metadata to existing entry
-        #' @param ... named list to add (see examples)
-        #' @examples
-                #' # config$addConfig(
-                #' #   xpertTZ = list(label="Timezone of Xpert Machine", required = TRUE, opts = OlsonNames)
-                #' #)
-    addConfig = function(...) {
-      self$config <- purrr::list_merge(self$config, ...)
+      self$saveToFile("config.yml");
     }
   )
 )

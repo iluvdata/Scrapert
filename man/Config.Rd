@@ -31,21 +31,13 @@ Holds configuration for Scrapert
 ## ------------------------------------------------
 
 #config
-
-## ------------------------------------------------
-## Method `Config$addConfig`
-## ------------------------------------------------
-
-# config$addConfig(
-#   xpertTZ = list(label="Timezone of Xpert Machine", required = TRUE, opts = OlsonNames)
-#)
 }
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{config}}{\code{list} holding the configuration.  Access with \code{config$config$xpertTZ$value}}
+\item{\code{config}}{\code{list} holding the configuration.  Access with \code{config$config$xpertTZ}}
 
-\item{\code{xpert}}{\code{list} holding the xpert interpretation values.  Access with \code{config$xpert["16"]$label}}
+\item{\code{xpert}}{\code{list} holding the xpert interpretation values.  Access with \code{config$xpert["16"]}}
 
 \item{\code{modules}}{\code{list} holding R6 module class (Auth, PID, CRF).  Access with \code{config$modules$Auth$checkAuth(res,req)}}
 }
@@ -58,12 +50,10 @@ Holds configuration for Scrapert
 \item \href{#method-Config-loadFromFile}{\code{Config$loadFromFile()}}
 \item \href{#method-Config-saveToFile}{\code{Config$saveToFile()}}
 \item \href{#method-Config-getNestedList}{\code{Config$getNestedList()}}
+\item \href{#method-Config-getWebConfig}{\code{Config$getWebConfig()}}
 \item \href{#method-Config-yaml}{\code{Config$yaml()}}
 \item \href{#method-Config-print}{\code{Config$print()}}
-\item \href{#method-Config-getWebConfig}{\code{Config$getWebConfig()}}
-\item \href{#method-Config-configNeeded}{\code{Config$configNeeded()}}
 \item \href{#method-Config-saveWebConfig}{\code{Config$saveWebConfig()}}
-\item \href{#method-Config-addConfig}{\code{Config$addConfig()}}
 \item \href{#method-Config-clone}{\code{Config$clone()}}
 }
 }
@@ -156,6 +146,20 @@ list() with xpert and module lists as top level items
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Config-getWebConfig"></a>}}
+\if{latex}{\out{\hypertarget{method-Config-getWebConfig}{}}}
+\subsection{Method \code{getWebConfig()}}{
+Get nested list of values. Replaces  opts functions with strings and module classes with names of the class
+strips modules
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Config$getWebConfig()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+list() with xpert and module lists as top level items
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Config-yaml"></a>}}
 \if{latex}{\out{\hypertarget{method-Config-yaml}{}}}
 \subsection{Method \code{yaml()}}{
@@ -194,32 +198,6 @@ print to terminal in yaml
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-Config-getWebConfig"></a>}}
-\if{latex}{\out{\hypertarget{method-Config-getWebConfig}{}}}
-\subsection{Method \code{getWebConfig()}}{
-get nested lists for json serialization
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Config$getWebConfig()}\if{html}{\out{</div>}}
-}
-
-\subsection{Returns}{
-nested lists of items
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-Config-configNeeded"></a>}}
-\if{latex}{\out{\hypertarget{method-Config-configNeeded}{}}}
-\subsection{Method \code{configNeeded()}}{
-a setting is needed
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Config$configNeeded()}\if{html}{\out{</div>}}
-}
-
-\subsection{Returns}{
-\code{TRUE} if a setting is needed
-}
-}
-\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Config-saveWebConfig"></a>}}
 \if{latex}{\out{\hypertarget{method-Config-saveWebConfig}{}}}
 \subsection{Method \code{saveWebConfig()}}{
@@ -235,33 +213,6 @@ Save the web configure (form data)
 }
 \if{html}{\out{</div>}}
 }
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-Config-addConfig"></a>}}
-\if{latex}{\out{\hypertarget{method-Config-addConfig}{}}}
-\subsection{Method \code{addConfig()}}{
-Add a configuration item to the stack or add metadata to existing entry
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Config$addConfig(...)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{...}}{named list to add (see examples)}
-}
-\if{html}{\out{</div>}}
-}
-\subsection{Examples}{
-\if{html}{\out{<div class="r example copy">}}
-\preformatted{# config$addConfig(
-#   xpertTZ = list(label="Timezone of Xpert Machine", required = TRUE, opts = OlsonNames)
-#)
-}
-\if{html}{\out{</div>}}
-
-}
-
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Config-clone"></a>}}

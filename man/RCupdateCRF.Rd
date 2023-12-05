@@ -4,10 +4,10 @@
 \alias{RCupdateCRF}
 \title{Upload CRFs}
 \usage{
-RCupdateCRF(id, config)
+RCupdateCRF(sn, config)
 }
 \arguments{
-\item{id}{A vector (length > 0) row ids in the sqlite database to be uploaded}
+\item{sn}{A vector (length > 0) cartridge_sn in the sqlite database to be uploaded}
 
 \item{config}{Scrapert config}
 }

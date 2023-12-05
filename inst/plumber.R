@@ -3,7 +3,6 @@
 
 library(dplyr, warn.conflicts = F)
 library(tidyr)
-
 # load config
 config <- Config$new("config.yml")
   # change permissions
@@ -12,9 +11,6 @@ if (as.integer(file.info("config.yml")$mode & as.octmode("177"))) {
   Sys.chmod("config.yml", mode = "0600")
 }
 
-config$addConfig(
-    xpertTZ = list(label = "Time Zone of Xpert Machine", opts = OlsonNames, required = TRUE)
-)
 auth <- if (is.character(config$modules$auth))  do.call(config$modules$auth, list(config = config))
 pid <- if (is.character(config$modules$pid)) do.call(config$modules$pid, list(config = config))
 crf <- if (is.character(config$modules$crf)) do.call(config$modules$crf, list(config = config))
@@ -69,8 +65,8 @@ function (req, res) {
     status = keyed_value("Status", xpert$raw_text),
     error = keyed_value("Error Status", xpert$raw_text),
     error_message = stringr::str_extract(xpert$raw_text, "(?<=Errors\\n)[:graph:]+"),
-    start_time = keyed_ts("Start Time", xpert$raw_text, config$config$xpertTZ$value),
-    end_time = keyed_ts("End Time", xpert$raw_text, config$config$xpertTZ$value),
+    start_time = keyed_ts("Start Time", xpert$raw_text, config$config$xpertTZ),
+    end_time = keyed_ts("End Time", xpert$raw_text, config$config$xpertTZ),
     instrument_sn = keyed_value("Instrument S/N", xpert$raw_text),
     cartridge_sn = keyed_value("Cartridge S/N\\*?", xpert$raw_text),
     reagant_lot = keyed_value("Reagent Lot ID\\*?", xpert$raw_text),
@@ -123,7 +119,7 @@ function (req, res) {
     mutate(start_time = as.character(start_time),
            end_time = as.character(end_time))
 
-  msg <- list()
+  msg <- NULL
   # appended to the database
   tryCatch({
     DBI::dbAppendTable(con, "xpert_results", df)
@@ -135,10 +131,12 @@ function (req, res) {
 
   # Now load with db id's and run xpert results
   df <- tbl(con, "xpert_results") %>%
-    select(!c(pdf, raw_text)) %>% filter(cartridge_sn %in% local(df$cartridge_sn)) %>% collect() %>%
-    modifiedXpert(config)
+    select(!c(pdf, raw_text)) %>% filter(cartridge_sn %in% local(df$cartridge_sn)) %>% collect()
   DBI::dbDisconnect(con)
-  list(results = df, message = msg)
+  return({
+    if (is.null(msg)) list(results = df)
+    else list(results = df, message = msg)
+  })
 }
 
 #* Get PID if not sample ID
@@ -146,7 +144,7 @@ function (req, res) {
 #* Will use sample ID to look up PID in REDCap
 #* @post /pid
 #* @param sampleid:[int]
-function(sampleid, res) {
+function(sampleid, res, req) {
   # This is platform specific so in a separate file
   result <-
     tryCatch({
@@ -174,25 +172,25 @@ function(sampleid, res) {
 
 #* Upload to CRF
 #*
-#* by row ID
+#* by cartrige serial number
 #* @post /crf
-#* @param id:[int]
-function(id, res) {
+#* @param sn:[string] Xpert cartrige serial number
+function(sn, res) {
   # This is platform specific so in a separate file
   result <- tryCatch({
-    crf$updateCRF(id, config)
+    crf$updateCRF(sn, config)
   }, error = function(e) {
     res$status <- 500
     return(list(msg = "CRF upload failed", err = e$message))
   })
-  if(class(result) != "list") { #did we get an error or a result
+  if(!is.null(result) & class(result) != "list") { #did we get an error or a result
     result <- tryCatch({
       con <-DBI::dbConnect(RSQLite::SQLite(), "xpertdb")
       result <- dbplyr::get_returned_rows(tbl(con, "xpert_results") %>%
-                                  rows_update(dbplyr::copy_inline(con, tibble(id = result) %>%
+                                  rows_update(dbplyr::copy_inline(con, tibble(cartridge_sn = result) %>%
                                                                     mutate(uploaded = format(lubridate::now(tzone = "GMT")))),
-                                              by = "id", unmatched = "ignore",
-                                              in_place = T, returning=c("id", "uploaded")))
+                                              by = "cartridge_sn", unmatched = "ignore",
+                                              in_place = T, returning=c("cartridge_sn", "uploaded")))
       DBI::dbDisconnect(con)
       result
     }, error = function(e) {
@@ -205,17 +203,16 @@ function(id, res) {
 
 #* Delete a sample (and CRF data)
 #* @delete /delete
-#* @param id:int
-function(id, res) {
+#* @param sn
+function(sn, res) {
   tryCatch({
-    crf$crfDelete(id, config)
+    crf$crfDelete(sn, config)
   }, error = function(e) {
-    res$status <- 500
-    return(list(msg="Unable to Delete CRF", err=e$message))
+    stop(paste0("Unable to delete CRF ", e$message))
   })
   # Delete from the local database 
   con <- DBI::dbConnect(RSQLite::SQLite(), "xpertdb")
-  result <-  DBI::dbSendStatement(con, paste("DELETE FROM xpert_results WHERE id =", id))
+  result <-  DBI::dbSendStatement(con, paste0('DELETE FROM xpert_results WHERE cartridge_sn = "', sn, '"'))
   count <- DBI::dbGetRowsAffected(result)
   DBI::dbClearResult(result)
   DBI::dbDisconnect(con)
@@ -227,39 +224,49 @@ function(id, res) {
   list()
 }
 
+
 #* Return xpert pdf
 #* @get /pdf
-#* @param id:int
-#* @serializer contentType list(type="application/pdf")
-function(id, dl, res) {
+#* @param sn
+function(sn, dl, res) {
   con <- DBI::dbConnect(RSQLite::SQLite(), "xpertdb")
-  df <- tbl(con, "xpert_results") %>% filter(id == local(id)) %>% select(sample_id, pdf) %>% collect()
+  df <- tbl(con, "xpert_results") %>% filter(cartridge_sn == local(sn)) %>% select(pid, sample_id, pdf) %>% collect()
   DBI::dbDisconnect(con)
-  if(length(df) == 0) {
-    res$status = 404
-    return(list(error="PDF not found."))
+  if(is.na(df$pdf) & is.na(df$pid)) {
+    res$status <- 404
+    res$body <- "PDF not found"
+    res$setHeader("Content-Type", "text/plain")
+  } else {
+    # the pdf might be in REDCap
+    if (is.na(df$pdf))  res$body <- crf$getPDF(df$pid, config)
+    else res$body <- base64enc::base64decode(df$pdf)
+    if(!missing(dl)) res$setHeader("Content-Disposition", glue::glue("attachment; filename={df$sample_id}.pdf"))
+    res$setHeader("Content-Type", "application/pdf")
   }
-  if(missing(dl)) base64enc::base64decode(df$pdf)
-  else as_attachment(base64enc::base64decode(df$pdf), filename = paste0(df$sample_id, ".pdf"))
+  res
 }
 
 #* Return xpert csv
 #* @get /xpert
-#* @serializer csv list(na="")
-function(id, res) {
+function(res) {
   csv <- NULL
   tryCatch({
     con <- DBI::dbConnect(RSQLite::SQLite(), "xpertdb")
     csv <- tbl(con, "xpert_results") %>% select(!c(pdf, id, raw_text)) %>% collect() %>%
       modifiedXpert(config)
-    names(csv$pid) <- config$config$pidName$value
+    names(csv$pid) <- config$config$pidName
     DBI::dbDisconnect(con)
+    if(is.data.frame(csv)) {
+      res$body <- readr::format_csv(csv, na="")
+      res$setHeader("Content-Dispostion", "attachment; filename=xpert.csv")
+      res$setHeader("Content-Type", "text/csv")
+    }
   }, error = function(e) { 
     res$status <- 404
-    res$headers <- list(contentType = "text/plain")
-    res$body <- paste0("Database empty. Hit back to upload results. Error: ", e$message)
+    res$setHeader("Content-Type", "text/plain")
+    res$body <- paste0("Database maybe empty. Hit back to upload results. Error: ", e$message)
   })
-  if(is.data.frame(csv)) as_attachment(csv, filename = "xpertresults.csv")
+  res
 }
 
 #* Search by Sample ID or PID
@@ -270,8 +277,7 @@ function(q, res) {
   tryCatch({
     con <- DBI::dbConnect(RSQLite::SQLite(), "xpertdb")
     df <- tbl(con, "xpert_results") %>% select(!c(pdf, raw_text)) %>%
-      filter(sample_id %like% local(paste0("%", q, "%")) | pid %like%  local(paste0("%", q, "%"))) %>% collect() %>%
-      modifiedXpert(config)
+      filter(sample_id %like% local(paste0("%", q, "%")) | pid %like%  local(paste0("%", q, "%"))) %>% collect()
     DBI::dbDisconnect(con)
   }, error = function(e) {
     res$status <- 500
@@ -283,25 +289,90 @@ function(q, res) {
 #* Get config
 #* @get /config
 function() {
-  return (list(usePID = config$config$usePID$value, pidName = config$config$pidName$value, 
-               configNeeded = config$configNeeded(), debug = interactive()))
-}
-
-#* Get settings
-#* @get /settings
-function() {
-  # compile list
-  config$getWebConfig()
+  return (append(config$getWebConfig(), list(debug = interactive(), server = server)));
 }
 
 #* Update settings
-#* @post /settings
-#* @param setting:object
-function(setting, req) {
-  config$saveWebConfig(setting)
-  # Maybe we have enough information to get a result
-  if(is.list(auth)) auth$setUser(req$session$username, config, req)
-  list()
+#* @post /config
+function(req) {
+  args <- req$args
+  config$saveWebConfig(args)
+  return()
+}
+
+#* backup db and settings to REDCap
+#* @post /backup
+function() {
+  key = RCCRFgetKey(config)
+  # Get the old file
+  data = list(
+    token = key,
+    content = "fileRepository",
+    action = "list",
+    format = "json",
+    returnFormat = "json"
+  )
+  response = httr::POST(config$config$api, encode = "form", body = data)
+  result = httr::content(response)
+  if (response$status_code != 200) {
+    stop(sprintf("Unable to get file list from REDCap: %s", httr::content(response)$error))
+  }
+  file = purrr::keep(result, \(x) {
+    x$name == "Scrapert_Backup.zip"
+  })
+  # Delete the file if exists
+  if(length(file) == 1) {
+    data$action = "delete"
+    data$doc_id = file[[1]]$doc_id
+    response = httr::POST(config$config$api, body = data, encode = "form")
+    if (response$status_code != 200) {
+      stop(sprintf("Unable to delete current backup in REDCap: %s", httr::content(response)$error))
+    }
+    data$doc_id <- NULL
+  }
+  temppath <- paste0(tempdir(), "/", "Scrapert_Backup.zip")
+  if (file.exists(temppath)) file.remove(temppath)
+  result = zip(temppath, c("config.yml", "xpertdb"))
+  data$action = "import"
+  data$file = httr::upload_file(temppath, type = "application/x-zip")
+  response = httr::POST(config$config$api, body = data, encode = "multipart")
+  if (response$status_code != 200) {
+    stop(sprintf("Unable to upload backup in REDCap: %s", httr::content(response)$error))
+  }
+  # cleanup
+  file.remove(temppath)
+  return (list(fileinfo = "Scrapert_Backup.zip"))
+}
+
+#* restore config.yml and xpertdb from REDcap
+#* @post /restore
+function() {
+  key = RCCRFgetKey(config)
+  data = list(
+    token = key,
+    content = "fileRepository",
+    action = "list",
+    format = "json",
+    returnFormat = "json"
+  )
+  response = httr::POST(config$config$api, encode = "form", body = data)
+  result = httr::content(response)
+  if (response$status_code != 200) {
+    stop(sprintf("Unable to get file list from REDCap: %s", httr::content(response)$error))
+  }
+  file = purrr::keep(result, \(x) {
+    x$name == "Scrapert_Backup.zip"
+  })
+  data$action <- "export"
+  data$doc_id <- file[[1]]$doc_id
+  tempfile = tempfile(fileext = ".zip")
+  response = httr::POST(config$config$api, encode = "form", body = data, httr::write_disk(tempfile))
+  if (response$status_code != 200) {
+    stop(sprintf("Unable to get backup file from REDCap: %s", httr::content(response)$error))
+  }
+  unzip(tempfile)
+  file.remove(tempfile)
+  return()
 }
 
 #* auth endpoint
@@ -313,6 +384,7 @@ function(req, res) {
 # Auth Filter
 # This will only be called if the auth function exists (is linked by source).  See README
 authFilter <- function(req, res) {
+
   # reset the timeout if we haven't connected a websocket (in which case sto is NULL)
   if(is.function(sto)) {
     sto()
@@ -330,14 +402,19 @@ authFilter <- function(req, res) {
 # the following is for the websocket tracking
 clients <- list()
 
+server <- getOption("scrapertserver")
+
 # Start a timer, basically if this isn't cancelled by a websocket connection withing 5 mins shut down (no zombie processes) 
 tofuns <- function() {
   later::later(function() {
-    logger::log_info("Scrapert is timing out")
+    logger::log_info("Scrapert is timing out (initial timeout)")
     if (!interactive()) exitPlumber()
   }, 300)
 }
-sto <- tofuns()
+sto <- {
+  if(!server) tofuns()
+  else NULL
+}
 
 exitPlumber <- function() {
   if (is.function(sto)) sto()
@@ -353,7 +430,7 @@ exitPlumber <- function() {
 #* @plumber
 function(pr) {
   options_plumber(
-    port = config$config$server_port$value
+    port = config$config$server_port
   )
   # Check for running instances
   # is this already running locally? and not in Rstudio
@@ -376,55 +453,61 @@ function(pr) {
         keyring::key_set_with_value(service = "plumber_api", password =  plumber::random_cookie_key())
         keyring::key_get("plumber_api")
       })
-    pr <- pr %>% pr_cookie(key, name="plumber", path="/", expiration = config$config$timeout$value) %>%
+    pr <- pr %>% pr_cookie(key, name="plumber", path="/", expiration = config$config$timeout) %>%
       pr_filter("auth", authFilter) 
     # add logout ep for testing
     if (interactive()) pr <- pr %>% pr_get("/test", function(action, req, res) {
-        if (action == "logout") req$session <- list()
-        else if (action == "deletedb") file.remove("xpertdb")
-        res$status <- 307
-        res$setHeader("Location", "/")
-      })
-  }
-  # Add websocket support to monitor connections
-  pr$websocket(
-    function(ws) {
-      ws$request$uuid <- uuid::UUIDgenerate()
-      # Cancel the timeout
-      if (is.function(sto)) {
-        sto()
-        sto <<- NULL
-      }
-      clients[[ws$request$uuid]] <<- ws
-      ws$onMessage(function(binary, message){
-        if (message == "shutdown") {
-          logger::log_info ("Server shutdown requested\n")
-          if (!interactive()) exitPlumber()
+        if (action == "logout") {
+          req$session <- list()
+          res$status <- 307
+          res$setHeader("Location", "/")
+        } else if (action == "deletedb") {
+          file.remove("xpertdb")
+          return (list())
         }
       })
-      ws$onClose(function() {
-        clients[[ws$request$uuid]] <<- NULL
-        logger::log_info("Removed ", ws$request$uuid, " ", length(clients), " client(s) connected\n")
-        # use a promise so this thread keeps running but only if all the clients are gone
-        if (is.list(clients) & length(clients) == 0) {
-          logger::log_info("starting shutdown timeout\n")
-          later::later(function(value) {
-              # shut this down if not interactive and the client list is still empty in ~ 30s
-              if (length(clients) == 0) {
-                logger::log_info ("shutting down\n")
-                if(!interactive()) exitPlumber()
-              } else logger::log_info("aborted shutdown ", length(clients), " client(s) is connected\n")
-            }, 30)
-        } # end if
-      })
-    }
-  )
+  }
+  if (!server) {
+  # Add websocket support to monitor connections
+    pr$websocket(
+      function(ws) {
+        ws$request$uuid <- uuid::UUIDgenerate()
+        # Cancel the timeout
+        if (is.function(sto)) {
+          sto()
+          sto <<- NULL
+        }
+        clients[[ws$request$uuid]] <<- ws
+        ws$onMessage(function(binary, message){
+          if (message == "shutdown") {
+            logger::log_info ("Server shutdown requested\n")
+            if (!interactive()) exitPlumber()
+          }
+        })
+        ws$onClose(function() {
+          clients[[ws$request$uuid]] <<- NULL
+          logger::log_info("Removed ", ws$request$uuid, " ", length(clients), " client(s) connected\n")
+          # use a promise so this thread keeps running but only if all the clients are gone
+          if (is.list(clients) & length(clients) == 0) {
+            logger::log_info("starting shutdown timeout\n")
+            later::later(function(value) {
+                # shut this down if not interactive and the client list is still empty in ~ 30s
+                if (length(clients) == 0) {
+                  logger::log_info ("shutting down\n")
+                  if(!interactive()) exitPlumber()
+                } else logger::log_info("aborted shutdown ", length(clients), " client(s) is connected\n")
+              }, 30)
+          } # end if
+        })
+      }
+    )
+  } # end websocket setup
   pr %>% pr_static("/", system.file("/www/", package="Scrapert")) %>%
     pr_set_docs(TRUE) %>% pr_set_serializer(serializer_unboxed_json())  %>%
     pr_hook("exit", exitPlumber) %>%
-     pr_set_docs_callback(function(url) {
+    pr_set_docs_callback(function(url) {
        # Hijack this function to open a browswer now the api is ready
-       if(!interactive())  browseURL(paste0("http://localhost:", config$config$server_port$value))
+       if(!interactive() && !server)  browseURL(paste0("http://localhost:", config$config$server_port))
        return (NULL)
     })
 }

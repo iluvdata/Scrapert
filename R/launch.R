@@ -6,6 +6,7 @@
 #' The database, the config file, and the log will all be located in the working directory 
 #' 
 #' @param wd a working directory or not supplied to use the current working directory
+#' @param server launch in server (daemon mode) `TRUE/FALSE`
 #' @return 0 (zero) if successful
 #' @export
 #'
@@ -14,10 +15,11 @@
 #' 
 #' # Scrapert::launch("/path/to/working_dir")
 #' 
-launch <- function(wd = getwd()) {
+launch <- function(wd = getwd(), server = FALSE) {
   setwd(wd)
   logger::log_layout(logger::layout_glue_colors)
   logger::log_messages()
+  options(scrapertserver = server)
   if(!interactive()) {
     file.remove("scrapert.log")
     logger::log_appender(logger::appender_file("scrapert.log"))
@@ -27,8 +29,11 @@ launch <- function(wd = getwd()) {
     logger::log_warn("No config found, using basic configuration")
     file.copy(system.file("config.sample.yml", package="Scrapert"), "config.yml")
   }
-  # plumber uses the files directory as the working directory... annoying
-  #file.copy(system.file("plumber.R", package="Scrapert"), ".plumber.R")
+  host <- "127.0.0.1"
+  if(server) {
+    logger::log_success("Running in server mode")
+    host <- "0.0.0.0"
+  } else logger::log_success("Running in standalone (app) mode")
   logger::log_info("Launching Scapert\n")
-  PlumberWebSocket$new(system.file("plumber.R", package="Scrapert"))$run()
+  PlumberWebSocket$new(system.file("plumber.R", package="Scrapert"))$run(host = host)
 }

@@ -4,10 +4,10 @@
 \alias{RCCRFDelete}
 \title{REDCap Delete CRF}
 \usage{
-RCCRFDelete(id, config)
+RCCRFDelete(sn, config)
 }
 \arguments{
-\item{id}{the row id in xpertdb}
+\item{sn}{the cartridge_sn in xpertdb}
 
 \item{config}{\link{Config} object}
 }

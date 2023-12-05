@@ -1,4 +1,3 @@
-debug: no
 usePID: yes
 pidName: PID
 timeout: 21600

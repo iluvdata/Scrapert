@@ -10,3 +10,4 @@
 **/config.yml
 .plumber.R
 Scrapert_0.8.0.tgz
+inst/www/config.js

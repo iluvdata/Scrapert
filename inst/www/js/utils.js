@@ -15,7 +15,7 @@ function RemoteFetch(url, opts) {
 }
 self.Encryption = (() => {
   async function encrypt(message) {
-    let nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+    const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
     const key = await loadKey();
     return sodium.to_hex(nonce) + "_" + sodium.to_hex(sodium.crypto_secretbox_easy(message, nonce, sodium.from_hex(key)));
   } 
@@ -32,6 +32,7 @@ self.Encryption = (() => {
       script.onload = function () {
         resolve(mySecret());
         script.parentNode.removeChild(script);
+        mySecret = undefined;
       };
       script.onerror = function(e) {
         if(!quietly) {
@@ -47,7 +48,7 @@ self.Encryption = (() => {
     });
   }
   async function getSecret(secret, quietly) {
-    const key = await loadKey(quietly).catch(e => {throw e});
+    const key = await loadKey(quietly).catch(e => {new Error("Cannot load key:  " + e.message)});
     if (!secret) return null;
     let txt = null;
     try {
@@ -59,7 +60,7 @@ self.Encryption = (() => {
           config.RC.apikey = null;
           localStorage.setItem("config", JSON.stringify(config));
           new bootstrap.Tab("#pills-setting-tab").show();
-      } else showModal("Error", e.message);
+      } else showModal("Key Error", e.message);
     }
     return txt;
   }
@@ -99,7 +100,7 @@ self.Encryption = (() => {
   };
 })();
 var config = {};
-self.RemoteConfig = (() => {
+const RemoteConfig = (() => {
   async function getConfig(){
     return await RemoteFetch("config").then(response => {return response.json()});
   }
@@ -110,8 +111,8 @@ self.RemoteConfig = (() => {
     getConfig: getConfig,
     save: save
   };
-})();
-self.LocalConfig = (() => {
+});
+const LocalConfig = (() => {
   async function getConfig() {
     if(!localStorage.getItem("config")) {
       config = {
@@ -152,6 +153,12 @@ self.LocalConfig = (() => {
    return JSON.parse(localStorage.getItem("config"));
   }
   async function save() {
+      // We have to await encrypts if this is set
+    apikey = $("#apikey").val();
+    if (apikey) {
+      apikey = await Encryption.encrypt(apikey);
+      config.RC.apikey = apikey;
+    }
     localStorage.setItem("config", JSON.stringify(config));
     return;
   }
@@ -159,8 +166,8 @@ self.LocalConfig = (() => {
     getConfig: getConfig,
     save: save
   };
-})();
-self.RemoteData = (() => {
+});
+const RemoteData = (() => {
   function search(q, cb) {
     RemoteFetch("search?q=" + q)
     .then(response => response.json().then(cb))
@@ -170,13 +177,12 @@ self.RemoteData = (() => {
     RemoteFetch("crf",{body: JSON.stringify({sn: sn}), 
       method: "POST", headers : {"Content-Type": "application/json"}})
       .then(async (response) => {
-        console.log(response);
         json = await response.json();
         json.forEach(e => {
           $("#ul" + e.cartridge_sn).text(dateFormat.format(new Date(e.uploaded)));
         });   
       })
-      .catch(response => {response.json().then(msg => showErr(msg.msg, msg.err))})
+      .catch(response => {response.json().then(msg => showErr(msg.msg, msg.err))});
   }
   async function getPID(sample_ids) {
     const response = await RemoteFetch("pid", {body: JSON.stringify({sampleid: sample_ids}), 
@@ -189,7 +195,6 @@ self.RemoteData = (() => {
   }
   async function deleteXpert(sn) {
     const response = await RemoteFetch("delete?sn=" + sn, {method: "DELETE"})
-    console.log(response);
     return
   }
   function logout() {
@@ -222,8 +227,8 @@ self.RemoteData = (() => {
     updateCRF: updateCRF,
     getCSV: getCSV
   };
-})();
-self.LocalData = (() => {
+});
+const LocalData = (() => {
   function initDB() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open("xpertdb", version);
@@ -400,16 +405,17 @@ self.LocalData = (() => {
     getPID: getPID,
     deleteXpert: deleteXpert
   };
-})();
-self.LocalUtils = (() => {
-  function backup() {
+});
+const LocalUtils = (() => {
+  function backup(target) {
+    target.disabled = true;
     REDCap.checkConf();
     let backup = {};
     backup.config = {};
     Object.assign(backup.config, config);
     delete backup.config.RC;
     backup.db = [];
-    LocalData.initDB().then (db => {
+    Data.initDB().then (db => {
       const obs = db.transaction("xpert_results").objectStore("xpert_results");
       let result = obs.openCursor();
       result.onsuccess = async (e) => {
@@ -462,11 +468,13 @@ self.LocalUtils = (() => {
           data.set("file", new Blob([JSON.stringify(backup)], {type: "application/json"}), "Scrapert_Backup.json");
           result = await REDCap.post(data, key);
           showToast("Backup Complete (Backed up to REDCap as Scrapert_Backup.json)");
+          target.disabled = false;
         }
       };
     });
   }
-  async function restoreBackup() {
+  async function restoreBackup(target) {
+    target.disabled = true;
     REDCap.checkConf();
     let data = {
       content : "fileRepository",
@@ -510,13 +518,14 @@ self.LocalUtils = (() => {
     localStorage.setItem("config", JSON.stringify(config));
     Data.write(file.db, true);
     showToast("Backup Restored");
+    target.disabled = false;
   }
   return {
     backup: backup,
     restoreBackup: restoreBackup
   }
-})();
-self.RemoteUtils = (() => {
+});
+const RemoteUtils = (() => {
   async function backup(target) {
     target.disabled = true;
     const result = await RemoteFetch("backup", {method: "POST"}).catch(async (r) => {
@@ -543,4 +552,4 @@ self.RemoteUtils = (() => {
     backup: backup,
     restoreBackup:  restoreBackup
   }
-})();
+});

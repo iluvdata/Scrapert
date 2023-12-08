@@ -42,27 +42,28 @@ async function setupEnviroment() {
     }
     addScript("js/sodium.js");
     addScript("https://cdn.jsdelivr.net/npm/luxon/build/global/luxon.min.js");
-    addScript("https://mozilla.github.io/pdf.js/build/pdf.mjs", undefined, "module");
-    addScript("https://cdn.jsdelivr.net/npm/pdf-lib@1.4.0/dist/pdf-lib.min.js", () => {
-      var { pdfjsLib } = globalThis;
-      // The workerSrc property shall be specified.
-      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://mozilla.github.io/pdf.js/build/pdf.worker.mjs";
-    });
-    self.Config = LocalConfig;
-    self.Data = LocalData;
-    self.Utils = LocalUtils;
-    self.PDFTools = LocalPDFTools;
-    $("keyRow").removeClass("d-none");
+    addScript("https://mozilla.github.io/pdf.js/build/pdf.mjs", () => {
+        var { pdfjsLib } = globalThis;
+        // The workerSrc property shall be specified.
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://mozilla.github.io/pdf.js/build/pdf.worker.mjs";
+    }, "module");
+    addScript("https://cdn.jsdelivr.net/npm/pdf-lib@1.4.0/dist/pdf-lib.min.js");
+    self.Config = LocalConfig();
+    self.Data = LocalData();
+    self.Utils = LocalUtils();
+    self.PDFTools = LocalPDFTools();
+    self.REDCap = LocalREDCap();
+    $("#keyRow").removeClass("d-none");
   } else {
-    self.Config = RemoteConfig;
-    self.PDFTools = RemotePDFTools;
-    self.Data = RemoteData;
-    self.Utils = RemoteUtils;
+    self.Config = RemoteConfig();
+    self.PDFTools = RemotePDFTools();
+    self.Data = RemoteData();
+    self.Utils = RemoteUtils();
   }
   config = await Config.getConfig();
   if(local) {
     if(config.debug) $("#utilbtns").append(`<button id="deletedbbtn" type="button" class="btn btn-warning" 
-      onclick="LocalData.deleteDB()">Delete DB</button>`);
+      onclick="Data.deleteDB()">Delete DB</button>`);
     // do we need config?
     function rcCheck() {
       if (!REDCap.hasConf()) {
@@ -70,7 +71,11 @@ async function setupEnviroment() {
         showModal("REDCap API Not Configured", 'Please enter the REDCap API URL and/or API Token on the "Settings" tab');
       }
     }
-    Encryption.getSecret(config.RC.apikey).then(rcCheck);
+    window.sodium = {
+      onload: () => {
+        Encryption.getSecret(config.RC.apikey).then(rcCheck);
+      }
+    }
   } else {
     if(!config.server) {
       const ws = new WebSocket(`ws://${document.location.host}`);
@@ -88,8 +93,8 @@ async function setupEnviroment() {
       };
     }
     if(config.debug) $("#utilbtns").prepend(`<button type="button" class="btn btn-warning" 
-      onclick="RemoteData.deleteDB()">Delete DB</button>`).prepend(`<button type="button" class="btn btn-secondary me-2" 
-      onclick="RemoteData.logout()">Logout</button>`);
+      onclick="Data.deleteDB()">Delete DB</button>`).prepend(`<button type="button" class="btn btn-secondary me-2" 
+      onclick="Data.logout()">Logout</button>`);
   }
 }
 $(document).on('change', '.file-input', function() {
@@ -244,7 +249,7 @@ function getSettings() {
           <label for="api" class="col-md-3 col-form-label text-end fw-bold">REDCap API URL</label>
           <div class="col-md-9"><input type="text" class="form-control" name="api" id="api" value="${ config.RC && config.RC.api ? config.RC.api : ""}" 
              required placeholder="https://..."></div></div>` + 
-             passcode("REDCap API Token", "apikey", !REDCap.hasConf()));
+             passcode("REDCap API Token", "apikey", !config.RC || !config.RC.apikey));
   
   sTab.append('<div class="md-3 row"><div class="col-md fw-bold text-center">Modified Xpert Settings</div></div>');
   for (let x in config.xpert) {
@@ -256,18 +261,11 @@ function getSettings() {
   } 
 }
 function saveSettings() { 
-  $("#settingsForm input:not(.btn),select").each((i, el) => {
-    if(el.name.startsWith("api")) {
+  savebtn = $("#settingsForm input[type='submit']").attr("disabled", true);
+  $("#settingsForm input:not(.btn)[id!='apikey'],select").each((i, el) => {
+    if(el.name === "api") {
       if (!config.RC) config.RC = {};
-      if (el.name.startsWith("apikey")) {
-          if (el.value !== "") {
-            Encryption.encrypt(el.value).then(s => { 
-              config.RC.apikey = s;
-            });
-          }
-      } else {
-        config.RC.api = el.value;
-      }
+      config.RC.api = el.value;
     } else if(!el.name.match(/^(ct|use).*/)) {
       config[el.name] = el.type === "checkbox" ? el.checked :
         (el.value === "" ? null : el.value);
@@ -280,6 +278,7 @@ function saveSettings() {
   config.version = version;
   Config.save(config).then(() => {
     showToast("Settings Saved");
+    savebtn.attr("disabled", false);
   }).catch(err => showModal("Unable to Save Settings", err));
 }
 function showModal(title, body) {

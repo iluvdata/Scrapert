@@ -18,7 +18,7 @@
 launch <- function(wd = getwd(), server = FALSE) {
   setwd(wd)
   logger::log_layout(logger::layout_glue_colors)
-  logger::log_messages()
+  #logger::log_messages()
   options(scrapertserver = server)
   if(!interactive()) {
     file.remove("scrapert.log")

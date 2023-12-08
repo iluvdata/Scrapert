@@ -1,4 +1,4 @@
-self.REDCap = (() => {
+const LocalREDCap = (() => {
   async function getPID(sample_ids) {
     let data = {
       content: "record",
@@ -15,11 +15,11 @@ self.REDCap = (() => {
     );
     return Promise.all(results.filter(e => e.pid ? true : false).map(e =>  {
         $("#sid" + e.sample_id).text(e.pid);
-        return LocalData.updatePID(e.sample_id, e.pid);
+        return Data.updatePID(e.sample_id, e.pid);
     }));
   }
   async function clearCRF(sn) {
-    let xpert = await LocalData.dbGetAll([sn]);
+    let xpert = await Data.dbGetAll([sn]);
     xpert = xpert.filter(e => { return e.pid !== undefined });
     if (xpert.length === 0) return;
     let recid = xpert[0].crf_id;
@@ -68,7 +68,7 @@ self.REDCap = (() => {
         showErr("Unable to map pids to record_ids", "REDCap Error: " + e.message));
   } 
   async function updateCRF(sn) {
-    xpert = await LocalData.dbGetAll(sn);
+    xpert = await Data.dbGetAll(sn);
     xpert = xpert.filter(e => { return e.pid !== undefined });
     const key = await Encryption.getSecret(config.RC.apikey);
     let recids = await getRecordIDs(xpert, key);
@@ -116,7 +116,7 @@ self.REDCap = (() => {
       });
       // delete the file from the database if we uploaded and release from memory
       delete xpert[i].pdf;
-      let res = await LocalData.crfDB(e.cartridge_sn, e.record_id);
+      let res = await Data.crfDB(e.cartridge_sn, e.record_id);
       $("#ul" + res.sn).text(dateFormat.format(res.uploaded));
     }); 
   }
@@ -184,9 +184,9 @@ self.REDCap = (() => {
     getPID: getPID,
     updateCRF: updateCRF,
     hasConf: hasConf,
-    checkConf,
+    checkConf: checkConf,
     getPDF: getPDF,
     clearCRF: clearCRF,
     post: post
   };
-})();
+});

@@ -1,4 +1,3 @@
-library(websocket)
 library(R6)
 library(plumber)
 

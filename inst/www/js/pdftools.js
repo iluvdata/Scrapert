@@ -1,4 +1,4 @@
-self.RemotePDFTools = (() => {
+const RemotePDFTools = (() => {
   function upload() {
     clearErr();
     let files = $("#xpertfiles").get(0);
@@ -32,8 +32,8 @@ self.RemotePDFTools = (() => {
     getPDF: getPDF,
     dlPDF: dlPDF
   };
-})();
-self.LocalPDFTools = (() => {
+});
+const LocalPDFTools = (() => {
   function upload() {
     clearErr();
     let xpertPromises = [];
@@ -89,7 +89,7 @@ self.LocalPDFTools = (() => {
         })
       ).then(async (xpert) => {
         xpert =  xpert.flat().filter(x => x !== null);
-        LocalData.write(xpert).then((ids) => {
+        Data.write(xpert).then((ids) => {
           updateTable(xpert);
           // update the pids
           REDCap.getPID(xpert.map(e => {return e.sample_id})).then(sn => {
@@ -183,7 +183,7 @@ self.LocalPDFTools = (() => {
     return tab;
   }
   async function getPDFLink(sn) {
-    const xpert = (await LocalData.dbGetAll([sn]))[0];
+    const xpert = (await Data.dbGetAll([sn]))[0];
     let file = undefined;
     if (xpert.uploaded) {
       file =  await REDCap.getPDF(xpert.crf_id).catch(e => {
@@ -218,4 +218,4 @@ self.LocalPDFTools = (() => {
     dlPDF: dlPDF,
     upload: upload
   }
-})();
+});

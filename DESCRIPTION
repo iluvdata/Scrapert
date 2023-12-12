@@ -1,7 +1,7 @@
 Package: Scrapert
 Type: Package
 Title: Local Scrapert App
-Description: Local web app to pull information from Xpert HPV(R) test results, store in a local database, and (optionally) upload to a database.
+Description: Local web app to pull information from Xpert HPV® test results, store in a local database, and (optionally) upload to a database.
 Version: 0.8.0
 Encoding: UTF-8
 Author: Grant Ellsworth <gre9006@med.cornell.edu>

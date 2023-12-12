@@ -4,5 +4,5 @@
 #' 
 #' @docType package
 #' @name Scrapert
-#' @import plumber pdftools stringr tidyverse DBI R6 later uuid yaml websocket RSQLite base64enc httr keyring lubridate readr
+#' @import plumber pdftools stringr tidyverse DBI R6 later uuid yaml RSQLite base64enc httr keyring lubridate readr pool glue
 NULL

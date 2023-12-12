@@ -1,6 +1,6 @@
 FROM rstudio/plumber:latest
 
-RUN R -e "remotes::install_github('iluvdata/Scrapert')"
+RUN R -q -e  "install.packages('pak'); pak::pak('iluvdata/Scrapert')"
 
 EXPOSE 5500
 

@@ -266,6 +266,7 @@ function(pr) {
     tryCatch({
       keyring::key_get("plumber_api")
     }, error = function(e) {
+      print(e)
       keyring::key_set_with_value(service = "plumber_api", password =  plumber::random_cookie_key())
       keyring::key_get("plumber_api")
     })

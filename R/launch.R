@@ -29,6 +29,14 @@ launch <- function(wd = getwd(), server = FALSE) {
     logger::log_warn("No config found, using basic configuration")
     file.copy(system.file("config.sample.yml", package="Scrapert"), "config.yml")
   }
+  if(tolower(Sys.info()[["sysname"]]) == "linux") {
+    options("keyring_backend" = "file", "keyring_keyring" = "scrapert_kr")
+    if(!file.exists("krs"))  {
+      cat(plumber::random_cookie_key(), "\n", sep="", file="krs")
+      keyring::keyring_create("scrapert_kr", password = readLines("krs"))
+    }
+    if (keyring::keyring_is_locked()) keyring::keyring_unlock(password = readLines("krs"))
+  }
   host <- "127.0.0.1"
   if(server) {
     logger::log_success("Running in server mode")

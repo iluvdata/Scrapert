@@ -105,7 +105,7 @@ RC <- R6Class("RC",
         private$config$saveToFile("config.yml")
         self$setKey(req$args$apikey)
         res$status <- 303 # temp redirect
-        res$setHeader("Location", "/") #try again
+        res$setHeader("Location", ".") #try again
         return()
       }
       # work around to get the data from the active link
@@ -119,7 +119,7 @@ RC <- R6Class("RC",
       fullname <- self$getUser(status$username)
       if (!is.null(fullname)) req$session$fullname <- fullname
       res$status <- 303 # otherwise 307 just forwards a post!
-      res$setHeader("Location", "/")
+      res$setHeader("Location", ".")
       return(res)
     },
     #' @description If able to get full name from REDCap will set session cookie along with username, 
@@ -354,8 +354,7 @@ RC <- R6Class("RC",
                              encode = encode)
       result <- httr::content(response, ...)
       if (response$status_code != 200) {
-        print(result)
-        stop(sprintf("RC POST Error: %s", result$error))
+        rlang::abort("RC POST Error: { result$error }")
       }
       result
     },

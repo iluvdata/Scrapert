@@ -277,7 +277,7 @@ function(pr) {
       if (action == "logout") {
         req$session <- list()
         res$status <- 303
-        res$setHeader("Location", "/")
+        res$setHeader("Location", ".")
       } else if (action == "deletedb") {
         pool::dbExecute(pool, "DROP TABLE IF EXISTS xpert_results")
         pool::dbExecute(pool, "DROP TABLE IF EXISTS version")

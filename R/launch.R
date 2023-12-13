@@ -29,7 +29,7 @@ launch <- function(wd = getwd(), server = FALSE) {
     logger::log_warn("No config found, using basic configuration")
     file.copy(system.file("config.sample.yml", package="Scrapert"), "config.yml")
   }
-  if(tolower(Sys.info()[["sysname"]]) == "linux") {
+  if(T || tolower(Sys.info()[["sysname"]]) == "linux") {
     options("keyring_backend" = "file", "keyring_keyring" = "scrapert_kr")
     if(!file.exists("krs"))  {
       cat(plumber::random_cookie_key(), "\n", sep="", file="krs")

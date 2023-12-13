@@ -14,9 +14,11 @@ RC <- R6Class("RC",
     #' @return RC class
     initialize = function (config) {
       private$config <- config
-      private$key <- tryCatch({
+      private$key <- rlang::try_fetch({
+        if(keyring::keyring_is_locked()) keyring::keyring_unlock(password = readLines("krs"))
         keyring::key_get("Scrapert-apikey")
-      }, error = function(e) {
+      }, error = function(cnd) {
+        rlang::warn("Unable to REDCap api key", parent = cnd)
         return(NULL)
       })
     },
@@ -39,6 +41,7 @@ RC <- R6Class("RC",
     setKey = function(key) {
       if(missing(key) || !is.character(key)) stop("key must contain a character string")
       private$key <- key
+      if(keyring::keyring_is_locked()) keyring::keyring_unlock(password = readLines("krs"))
       keyring::key_set_with_value(service = "Scrapert-apikey", password = key)
     },
     #' @description 

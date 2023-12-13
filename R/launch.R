@@ -35,7 +35,6 @@ launch <- function(wd = getwd(), server = FALSE) {
       cat(plumber::random_cookie_key(), "\n", sep="", file="krs")
       keyring::keyring_create("scrapert_kr", password = readLines("krs"))
     }
-    if (keyring::keyring_is_locked()) keyring::keyring_unlock(password = readLines("krs"))
   }
   host <- "127.0.0.1"
   if(server) {

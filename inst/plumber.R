@@ -263,12 +263,12 @@ function(pr) {
     write(Sys.getpid(), file = "plumber.lock")
   }
   key <-
-    tryCatch({
+    rlang::try_fetch({
       keyring::key_get("plumber_api")
-    }, error = function(e) {
-      print(e)
+    }, error = function(cnd) {
+      rlang::warn("Unable to get key plumber_api", parent = cnd)
       keyring::key_set_with_value(service = "plumber_api", password =  plumber::random_cookie_key())
-      keyring::key_get("plumber_api")
+      return (keyring::key_get("plumber_api"))
     })
   pr <- pr %>% pr_cookie(key, name="plumber", path="/", expiration = config$config$timeout) %>%
     pr_filter("auth", authFilter) 

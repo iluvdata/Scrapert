@@ -133,8 +133,8 @@ RC <- R6Class("RC",
     getUser = function(uname) {
       # We are authenticated and can access the API so try and get the user
       private$POST(list (content = "user",  format = "csv",  returnFormat = "json"), show_col_types = FALSE) %>% 
-        filter(username == uname) %>% 
-        mutate(fullname = paste(firstname, lastname)) %>% pull(fullname)
+        dplyr::filter(username == uname) %>% 
+        dplyr::mutate(fullname = paste(firstname, lastname)) %>% dplyr::pull(fullname)
     },
     #' @description
     #' get auth filter exclusions

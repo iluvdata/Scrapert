@@ -237,7 +237,6 @@ RC <- R6Class("RC",
       # get the record numbers
       df <- df %>% private$getRecordID()
       # delete the files first
-      dbDisconnect(con)
       data <- list(
         action = "delete",
         content = "file",

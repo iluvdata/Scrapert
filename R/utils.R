@@ -103,14 +103,14 @@ parsePDF <- function(xpert, processed_by, config, pool) {
     })
     x
   })
-  xpert <- bind_rows(xpert)
+  xpert <- dplyr::bind_rows(xpert)
   # Get the tabular results
   tbl <- stringr::str_replace_all(
     stringr::str_extract(xpert$raw_text, "SAC[[:graph:]\\s\\n]+(?=\\n{3}User:)"),
     "(?<=HPV)\\s(?=\\d{2})", "_") %>%
     lapply(readr::read_table, col_names = c("analyte", "ct", "end_point", "result", "probe_check")) %>%
-    lapply(select, c("analyte", "ct", "result"))
-  df <- tibble(
+    lapply(dplyr::select, c("analyte", "ct", "result"))
+  df <- dplyr::tibble(
     sample_id = keyed_value("Sample ID\\*?", xpert$raw_text),
     test_result =
       stringr::str_replace_all(
@@ -128,13 +128,13 @@ parsePDF <- function(xpert, processed_by, config, pool) {
     raw_text = xpert$raw_text,
     pdf = xpert$pdf,
     results = tbl) %>%
-    unnest(cols = results) %>%
-    pivot_wider(
+    tidyr::unnest(cols = results) %>%
+    tidyr::pivot_wider(
       names_from = analyte,
       values_from = c(ct, result),
       names_glue = "{analyte}_{.value}"
     ) %>%
-    relocate(starts_with(c("SAC", "HPV_16", "HPV_18", "P3", "P4", "P5")), .after="error")
+    dplyr::relocate(tidyselect::starts_with(c("SAC", "HPV_16", "HPV_18", "P3", "P4", "P5")), .after="error")
   rm(tbl, xpert)
   # Write to DB
   if (!pool::dbExistsTable(pool, "xpert_results")) {
@@ -148,7 +148,7 @@ parsePDF <- function(xpert, processed_by, config, pool) {
     rs <- pool::dbExecute(pool, sql)
     rs <- pool::dbExecute(pool, "CREATE UNIQUE INDEX samp_run ON xpert_results (sample_id, cartridge_sn)")
     # add the version
-    version <- tibble(version = as.character(packageVersion("Scrapert")))
+    version <- dplyr::tibble(version = as.character(utils::packageVersion("Scrapert")))
     pool::dbWriteTable(pool, "version", version)
   }
   
@@ -156,11 +156,11 @@ parsePDF <- function(xpert, processed_by, config, pool) {
   df$processed_by <- processed_by
   
   # Read in the pdfs using the tempfile paths and base64enc since sqlite doesn't do binary well.
-  df <- df %>% mutate(pdfbin = sapply(df$pdf, base64enc::base64encode, USE.NAMES = F))
+  df <- df %>% dplyr::mutate(pdfbin = sapply(df$pdf, base64enc::base64encode, USE.NAMES = F))
   file.remove(df$pdf)
-  df <- df %>% select (!pdf, pdf = pdfbin) %>%
+  df <- df %>% dplyr::select (!pdf, pdf = pdfbin) %>%
     # fix dates
-    mutate(start_time = as.character(start_time),
+    dplyr::mutate(start_time = as.character(start_time),
            end_time = as.character(end_time))
   
   msg <- NULL
@@ -175,7 +175,7 @@ parsePDF <- function(xpert, processed_by, config, pool) {
   
   # Now load with db id's and run xpert results
   df <- tbl(pool, "xpert_results") %>%
-    select(!c(pdf, raw_text)) %>% filter(cartridge_sn %in% local(df$cartridge_sn)) %>% collect()
+    dplyr::select(!c(pdf, raw_text)) %>% dplyr::filter(cartridge_sn %in% local(df$cartridge_sn)) %>% dplyr::collect()
   return({
     if (is.null(msg)) list(results = df)
     else list(results = df, message = msg)

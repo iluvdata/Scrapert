@@ -174,7 +174,7 @@ parsePDF <- function(xpert, processed_by, config, pool) {
   })
   
   # Now load with db id's and run xpert results
-  df <- tbl(pool, "xpert_results") %>%
+  df <- dplyr::tbl(pool, "xpert_results") %>%
     dplyr::select(!c(pdf, raw_text)) %>% dplyr::filter(cartridge_sn %in% local(df$cartridge_sn)) %>% dplyr::collect()
   return({
     if (is.null(msg)) list(results = df)

@@ -46,8 +46,8 @@ function(sampleid, res, req) {
     tryCatch({
       # upddate pids
       con = pool::poolCheckout(pool)
-      result <- dbplyr::get_returned_rows(tbl(con, "xpert_results") %>%
-                                            rows_update(copy_to(con, result, "pids", overwrite =T),
+      result <- dbplyr::get_returned_rows(dplyr::tbl(con, "xpert_results") %>%
+                                            dplyr::rows_update(copy_to(con, result, "pids", overwrite =T),
                                                         by = "sample_id", unmatched = "ignore",
                                                         in_place = T, returning=c("sample_id", "pid")))
       pool::poolReturn(con)
@@ -75,9 +75,9 @@ function(sn, res) {
   if(!is.null(result) & class(result) != "list") { #did we get an error or a result
     result <- tryCatch({
       con <- pool::poolCheckout(pool)
-      result <- dbplyr::get_returned_rows(tbl(con, "xpert_results") %>%
-                                  rows_update(copy_to(con, tibble(cartridge_sn = result) %>%
-                                                                    mutate(uploaded = format(lubridate::now(tzone = "GMT"))), 
+      result <- dbplyr::get_returned_rows(dplyr::tbl(con, "xpert_results") %>%
+                                  dplyr::rows_update(copy_to(con, dplyr::tibble(cartridge_sn = result) %>%
+                                                                    dplyr::mutate(uploaded = format(lubridate::now(tzone = "GMT"))), 
                                                       "uploads", overwrite=T),
                                               by = "cartridge_sn", unmatched = "ignore",
                                               in_place = T, returning=c("cartridge_sn", "uploaded")))
@@ -115,7 +115,7 @@ function(sn, res) {
 #* @get /pdf
 #* @param sn
 function(sn, dl, res) {
-  df <- tbl(pool, "xpert_results") %>% filter(cartridge_sn == local(sn)) %>% select(pid, sample_id, pdf) %>% collect()
+  df <- dplyr::tbl(pool, "xpert_results") %>% dplyr::filter(cartridge_sn == local(sn)) %>% dplyr::select(pid, sample_id, pdf) %>% dplyr::collect()
   if(is.na(df$pdf) & is.na(df$pid)) {
     res$status <- 404
     res$body <- "PDF not found"
@@ -135,7 +135,7 @@ function(sn, dl, res) {
 function(res) {
   csv <- NULL
   tryCatch({
-    csv <- tbl(pool, "xpert_results") %>% select(!c(pdf, id, raw_text)) %>% collect() %>%
+    csv <- dplyr::tbl(pool, "xpert_results") %>% dplyr::select(!c(pdf, id, raw_text)) %>% dplyr::collect() %>%
       modifiedXpert(config)
     names(csv$pid) <- config$config$pidName
     if(is.data.frame(csv)) {
@@ -157,8 +157,8 @@ function(q, res) {
   if (nchar(q) < 2) return("")
   df <- NULL
   tryCatch({
-    df <- tbl(pool, "xpert_results") %>% select(!c(pdf, raw_text)) %>%
-      filter(sample_id %like% local(paste0("%", q, "%")) | pid %like%  local(paste0("%", q, "%"))) %>% collect()
+    df <- dplyr::tbl(pool, "xpert_results") %>% select(!c(pdf, raw_text)) %>%
+      dplyr::filter(sample_id %like% local(paste0("%", q, "%")) | pid %like%  local(paste0("%", q, "%"))) %>% dplyr::collect()
   }, error = function(e) {
     res$status <- 500
     df <<- list(list(msg = "Search error, database is empty", err = e$message))

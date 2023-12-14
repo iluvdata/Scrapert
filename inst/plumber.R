@@ -115,7 +115,8 @@ function(sn, res) {
 #* @get /pdf
 #* @param sn
 function(sn, dl, res) {
-  df <- dplyr::tbl(pool, "xpert_results") %>% dplyr::filter(cartridge_sn == local(sn)) %>% dplyr::select(pid, sample_id, pdf) %>% dplyr::collect()
+  df <- dplyr::tbl(pool, "xpert_results") %>% dplyr::filter(cartridge_sn == local(sn)) %>% dplyr::select(pid, sample_id, pdf) %>% 
+    dplyr::collect()
   if(is.na(df$pdf) & is.na(df$pid)) {
     res$status <- 404
     res$body <- "PDF not found"
@@ -157,8 +158,8 @@ function(q, res) {
   if (nchar(q) < 2) return("")
   df <- NULL
   tryCatch({
-    df <- dplyr::tbl(pool, "xpert_results") %>% select(!c(pdf, raw_text)) %>%
-      dplyr::filter(sample_id %like% local(paste0("%", q, "%")) | pid %like%  local(paste0("%", q, "%"))) %>% dplyr::collect()
+    df <- dplyr::tbl(pool, "xpert_results") %>% dplyr::select(!c(pdf, raw_text)) %>%
+      dplyr::filter(sample_id %LIKE% local(paste0("%", q, "%")) | pid %LIKE% local(paste0("%", q, "%"))) %>% dplyr::collect()
   }, error = function(e) {
     res$status <- 500
     df <<- list(list(msg = "Search error, database is empty", err = e$message))

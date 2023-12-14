@@ -102,7 +102,7 @@ function(sn, res) {
   })
   # Delete from the local database 
   count <- DBI::dbExecute(pool, paste0('DELETE FROM xpert_results WHERE cartridge_sn = "', sn, '"'))
-  if (count != length(id)) {
+  if (count != length(sn)) {
     res$status_code <- 500
     return(list(msg="Unable to delete from database",
                 err = paste("Deleted", count, "samples but expected to delete", length(sn), "samples")))

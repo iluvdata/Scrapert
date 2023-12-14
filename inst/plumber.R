@@ -47,7 +47,7 @@ function(sampleid, res, req) {
       # upddate pids
       con = pool::poolCheckout(pool)
       result <- dbplyr::get_returned_rows(dplyr::tbl(con, "xpert_results") %>%
-                                            dplyr::rows_update(copy_to(con, result, "pids", overwrite =T),
+                                            dplyr::rows_update(dplyr::copy_to(con, result, "pids", overwrite =T),
                                                         by = "sample_id", unmatched = "ignore",
                                                         in_place = T, returning=c("sample_id", "pid")))
       pool::poolReturn(con)

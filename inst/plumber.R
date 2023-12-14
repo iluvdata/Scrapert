@@ -76,7 +76,7 @@ function(sn, res) {
     result <- tryCatch({
       con <- pool::poolCheckout(pool)
       result <- dbplyr::get_returned_rows(dplyr::tbl(con, "xpert_results") %>%
-                                  dplyr::rows_update(copy_to(con, dplyr::tibble(cartridge_sn = result) %>%
+                                  dplyr::rows_update(dplyr::copy_to(con, dplyr::tibble(cartridge_sn = result) %>%
                                                                     dplyr::mutate(uploaded = format(lubridate::now(tzone = "GMT"))), 
                                                       "uploads", overwrite=T),
                                               by = "cartridge_sn", unmatched = "ignore",

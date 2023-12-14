@@ -158,8 +158,8 @@ RC <- R6Class("RC",
         filterLogic = paste(paste0("[sample_id]='", sampleid, "'"), collapse = " OR ")
       )
       piddb <- private$POST(data, show_col_types = FALSE, col_types = "cc")
-      pids <- tibble(sample_id = sampleid)
-      pids <- pids %>% left_join(piddb, by="sample_id")
+      pids <- dplyr::tibble(sample_id = sampleid)
+      pids <- pids %>% dplyr::left_join(piddb, by="sample_id")
       pids
     },
     #' @description
@@ -186,9 +186,9 @@ RC <- R6Class("RC",
         forceAutoNumber = "false",
         returnContent = "count",
         returnFormat = "json",
-        data = readr::format_csv(df %>% select(xpert_result = test_result, xpert_timestamp = end_time, record_id, 
+        data = readr::format_csv(df %>% dplyr::select(xpert_result = test_result, xpert_timestamp = end_time, record_id, 
                                                cartridge_sn, xpert_processed_by = processed_by, -sample_id, -id) %>%
-                                   mutate(xpert_result_complete = 2))
+                                   dplyr::mutate(xpert_result_complete = 2))
       )
       private$POST(data)
       # Now for the files
@@ -257,8 +257,8 @@ RC <- R6Class("RC",
         forceAutoNumber = "false",
         returnContent = "count",
         returnFormat = "json",
-        data = readr::format_csv(df %>% select(record_id, -pid) %>%
-                                   mutate(xpert_result_complete = "", xpert_result = "", xpert_timestamp = "",
+        data = readr::format_csv(df %>% dplyr::select(record_id, -pid) %>%
+                                   dplyr::mutate(xpert_result_complete = "", xpert_result = "", xpert_timestamp = "",
                                           cartridge_sn = "", xpert_processed_by = ""))
       )
       count <- as.integer(private$POST(data)$count)
@@ -391,7 +391,7 @@ RC <- R6Class("RC",
         filterLogic = paste(paste0("[pid]='", df$pid, "'"), collapse = " OR ")
       )
       rid <- private$POST(data, col_types="cc")
-      df %>% left_join(rid, by="pid")
+      df %>% dplyr::left_join(rid, by="pid")
     }
   )
 )

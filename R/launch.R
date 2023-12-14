@@ -18,12 +18,7 @@
 launch <- function(wd = getwd(), server = FALSE) {
   setwd(wd)
   logger::log_layout(logger::layout_glue_colors)
-  #logger::log_messages()
   options(scrapertserver = server)
-  if(!interactive()) {
-    file.remove("scrapert.log")
-    logger::log_appender(logger::appender_file("scrapert.log"))
-  }
   logger::log_info("Using working directory ", wd)
   if(!file.exists("config.yml")) {
     logger::log_warn("No config found, using basic configuration")

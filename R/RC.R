@@ -170,13 +170,13 @@ RC <- R6Class("RC",
     #' @return character vector of cartridge_sn uploaded
     updateCRF = function(sn, pool) {
       # Build data frames
-      df <- tbl(pool, "xpert_results") %>% filter(cartridge_sn %in% local(sn) & !is.na(pid)) %>% 
-        select(id, sample_id, cartridge_sn, test_result, end_time, processed_by, pid) %>% collect()
+      df <- dplyr::tbl(pool, "xpert_results") %>% dplyr::filter(cartridge_sn %in% local(sn) & !is.na(pid)) %>% 
+        dplyr::select(id, sample_id, cartridge_sn, test_result, end_time, processed_by, pid) %>% dplyr::collect()
       if (nrow(df) == 0) {
         stop (sprintf("pid is missing for %s", sn))
       };
       df <- df %>% # Get the record numbers
-        private$getRecordID() %>% filter(!is.na(record_id))
+        private$getRecordID() %>% dplyr::filter(!is.na(record_id))
       # upload xpert results
       data <- list(
         content = "record",
@@ -194,8 +194,8 @@ RC <- R6Class("RC",
       # Now for the files
       apply(df, MARGIN = 1, FUN = function(x) {
         x <- as.list(x)
-        pdf <- tbl(pool, "xpert_results") %>% filter(id == local(x$id)) %>% select(pdf) %>% collect() %>%
-          pull(pdf)
+        pdf <- dplyr::tbl(pool, "xpert_results") %>% dplyr::filter(id == local(x$id)) %>% dplyr::select(pdf) %>% dplyr::collect() %>%
+          dplyr::pull(pdf)
         if (!is.na(pdf)) {
           temp <- file(paste0(tempdir(), "/", x$sample_id, ".pdf"), "wb")
           base64enc::base64decode(pdf, output = temp)
@@ -229,8 +229,8 @@ RC <- R6Class("RC",
     #' @return \code{NULL} if successful
     CRFDelete = function(sn) {
       con <- dbConnect(RSQLite::SQLite(), "xpertdb")
-      df <- tbl(con, "xpert_results") %>% filter(cartridge_sn %in% local(sn)) %>% 
-        select(pid) %>% collect()
+      df <- dplyr::tbl(con, "xpert_results") %>% dplyr::filter(cartridge_sn %in% local(sn)) %>% 
+        dplyr::select(pid) %>% dplyr::collect()
       if (is.na(df$pid)) {
         logger::log_info("No PID set for sn {sn}, unable to delete from REDCap")
         return()

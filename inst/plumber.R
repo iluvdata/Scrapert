@@ -96,7 +96,7 @@ function(sn, res) {
 #* @param sn
 function(sn, res) {
   tryCatch({
-    rc$CRFDelete(sn)
+    rc$CRFDelete(sn, pool)
   }, error = function(e) {
     stop(paste0("Unable to delete CRF ", e$message))
   })
@@ -105,7 +105,7 @@ function(sn, res) {
   if (count != length(id)) {
     res$status_code <- 500
     return(list(msg="Unable to delete from database",
-                err = paste("Deleted", count, "samples but expected to delete", length(id), "samples")))
+                err = paste("Deleted", count, "samples but expected to delete", length(sn), "samples")))
   }
   list()
 }

@@ -227,9 +227,8 @@ RC <- R6Class("RC",
     #' @param sn the cartridge_sn in xpertdb
     #'
     #' @return \code{NULL} if successful
-    CRFDelete = function(sn) {
-      con <- dbConnect(RSQLite::SQLite(), "xpertdb")
-      df <- dplyr::tbl(con, "xpert_results") %>% dplyr::filter(cartridge_sn %in% local(sn)) %>% 
+    CRFDelete = function(sn, pool) {
+      df <- dplyr::tbl(pool, "xpert_results") %>% dplyr::filter(cartridge_sn %in% local(sn)) %>% 
         dplyr::select(pid) %>% dplyr::collect()
       if (is.na(df$pid)) {
         logger::log_info("No PID set for sn {sn}, unable to delete from REDCap")

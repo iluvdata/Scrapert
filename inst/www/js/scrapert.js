@@ -239,7 +239,7 @@ function getSettings() {
   sTab = $("#settingsDiv");
   sTab.empty();
   sTab.append(`<div class="mb-3 row">
-    <div> class="col-md-3 text-end fw-bold">Version</div>
+    <div class="col-md-3 text-end fw-bold">Version</div>
     <div class="col-md-9">${ config.version }</div></div>`);
   sTab.append(`<div class="mb-3 row">
     <label for="xpertTZ" class="col-md-3 col-form-label text-end fw-bold">Time Zone of Xpert Machine</label>
